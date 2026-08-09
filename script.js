@@ -1,20 +1,36 @@
-// Base de datos de tasas cruzadas y monedas resultantes
-const TASAS_MANUALES = [
-    { origen: 'Perú', destino: 'Venezuela', tasa: 240.10, monedaMult: 'Bs', monedaDiv: 'S/' },
-    { origen: 'Perú', destino: 'Brasil', tasa: 1.20, monedaMult: 'R$', monedaDiv: 'S/' },
-    { origen: 'Perú', destino: 'Colombia', tasa: 850.0, monedaMult: 'COP', monedaDiv: 'S/' },
-    { origen: 'Venezuela', destino: 'Perú', tasa: 1.18, monedaMult: 'Bs', monedaDiv: 'S/' },
-    { origen: 'Venezuela', destino: 'Colombia', tasa: 0.032, monedaMult: 'COP', monedaDiv: 'Bs' },
-    { origen: 'Venezuela', destino: 'Brasil', tasa: 125.0, monedaMult: 'Bs', monedaDiv: 'R$' },
-    { origen: 'Colombia', destino: 'Venezuela', tasa: 31.5, monedaMult: 'COP', monedaDiv: 'Bs' },
-    { origen: 'Colombia', destino: 'Perú', tasa: 200.0, monedaMult: 'COP', monedaDiv: 'S/' },
-    { origen: 'Colombia', destino: 'Brasil', tasa: 100.0, monedaMult: 'COP', monedaDiv: 'R$' },
-    { origen: 'Brasil', destino: 'Perú', tasa: 0.83, monedaMult: 'S/', monedaDiv: 'R$' },
-    { origen: 'Brasil', destino: 'Venezuela', tasa: 125.0, monedaMult: 'Bs', monedaDiv: 'R$' },
-    { origen: 'Brasil', destino: 'Colombia', tasa: 3571.0, monedaMult: 'COP', monedaDiv: 'R$' }
-];
+// Tu ID de Google Sheets integrado
+const SHEET_ID = '1JKBGVPGPRCKIQsj1MpEvNLylxx29eCU6iFLGYAJ0qnA'; 
+// Si la pestaña de tu hoja se llama distinto a "Hoja1" (por ejemplo, "Sheet1"), cámbialo aquí al final:
+const API_URL = `https://opensheet.elk.sh/${SHEET_ID}/Hoja1`;
+
+let TASAS_MANUALES = [];
+
+async function obtenerTasas() {
+    const tasaInfo = document.getElementById('tasaInfo');
+    tasaInfo.innerHTML = 'Obteniendo tasas actualizadas...';
+
+    try {
+        const respuesta = await fetch(API_URL);
+        const datos = await respuesta.json();
+
+        TASAS_MANUALES = datos.map(item => ({
+            origen: item.Origen ? item.Origen.toString().trim() : '',
+            destino: item.Destino ? item.Destino.toString().trim() : '',
+            tasa: item.Tasa ? parseFloat(item.Tasa.toString().replace(',', '.')) : 0,
+            monedaMult: item.MonedaMult ? item.MonedaMult.toString().trim() : '',
+            monedaDiv: item.MonedaDiv ? item.MonedaDiv.toString().trim() : ''
+        }));
+
+        calcular();
+    } catch (error) {
+        console.error('Error al cargar las tasas:', error);
+        tasaInfo.innerHTML = '⚠️ Error al cargar las tasas desde Google Sheets';
+    }
+}
 
 function calcular() {
+    if (TASAS_MANUALES.length === 0) return;
+
     const origen = document.getElementById('origen').value;
     const destino = document.getElementById('destino').value;
     const monto = parseFloat(document.getElementById('monto').value) || 0;
@@ -94,5 +110,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('swapBtn').addEventListener('click', intercambiarPaises);
     document.getElementById('verTasasBtn').addEventListener('click', toggleTabla);
 
-    calcular();
+    // Cargar tasas al iniciar
+    obtenerTasas();
 });
