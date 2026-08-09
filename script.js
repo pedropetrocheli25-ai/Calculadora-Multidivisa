@@ -1,13 +1,43 @@
-// Tu ID de Google Sheets integrado
 const SHEET_ID = '1JKBGVPGPRCKIQsj1MpEvNLylxx29eCU6iFLGYAJ0qnA'; 
-// Si la pestaña de tu hoja se llama distinto a "Hoja1" (por ejemplo, "Sheet1"), cámbialo aquí al final:
 const API_URL = `https://opensheet.elk.sh/${SHEET_ID}/Hoja1`;
 
 let TASAS_MANUALES = [];
+let TASAS_BCV = { USD: 0, EUR: 0 };
+
+async function obtenerBCV() {
+    try {
+        const [resUSD, resEUR] = await Promise.all([
+            fetch('https://ve.dolarapi.com/v1/dolares/oficial').then(r => r.json()),
+            fetch('https://ve.dolarapi.com/v1/euros/oficial').then(r => r.json())
+        ]);
+
+        TASAS_BCV.USD = resUSD.promedio || resUSD.monto || 0;
+        TASAS_BCV.EUR = resEUR.promedio || resEUR.monto || 0;
+
+        document.getElementById('bcvUsd').textContent = `${TASAS_BCV.USD.toFixed(2)} Bs`;
+        document.getElementById('bcvEur').textContent = `${TASAS_BCV.EUR.toFixed(2)} Bs`;
+        calcular();
+    } catch (e) {
+        console.error('Error cargando BCV principal:', e);
+        try {
+            const res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=bcv').then(r => r.json());
+            if (res && res.monedas) {
+                TASAS_BCV.USD = res.monedas.usd?.promedio || 0;
+                TASAS_BCV.EUR = res.monedas.eur?.promedio || 0;
+                document.getElementById('bcvUsd').textContent = `${TASAS_BCV.USD.toFixed(2)} Bs`;
+                document.getElementById('bcvEur').textContent = `${TASAS_BCV.EUR.toFixed(2)} Bs`;
+                calcular();
+            }
+        } catch(err) {
+            document.getElementById('bcvUsd').textContent = 'Error';
+            document.getElementById('bcvEur').textContent = 'Error';
+        }
+    }
+}
 
 async function obtenerTasas() {
     const tasaInfo = document.getElementById('tasaInfo');
-    tasaInfo.innerHTML = 'Obteniendo tasas actualizadas...';
+    tasaInfo.innerHTML = 'Obteniendo tasas...';
 
     try {
         const respuesta = await fetch(API_URL);
@@ -33,31 +63,104 @@ function calcular() {
 
     const origen = document.getElementById('origen').value;
     const destino = document.getElementById('destino').value;
-    const monto = parseFloat(document.getElementById('monto').value) || 0;
+    const montoInput = parseFloat(document.getElementById('monto').value) || 0;
     const operacion = document.getElementById('operacion').value;
+    
+    const bcvSection = document.getElementById('bcvSection');
+    const bcvEquivalencia = document.getElementById('bcvEquivalencia');
+    const esVenezuelaInvolucrado = (origen === 'Venezuela' || destino === 'Venezuela');
+
+    // Mostrar u ocultar sección BCV según participación de Venezuela
+    if (esVenezuelaInvolucrado) {
+        bcvSection.style.display = 'block';
+        if (TASAS_BCV.USD === 0) {
+            obtenerBCV();
+        }
+    } else {
+        bcvSection.style.display = 'none';
+        bcvEquivalencia.style.display = 'none';
+    }
 
     const infoTasa = TASAS_MANUALES.find(t => t.origen === origen && t.destino === destino);
 
     if (!infoTasa) {
         document.getElementById('tasaInfo').innerHTML = `Sin tasa configurada para <strong>${origen} → ${destino}</strong>`;
         document.getElementById('resultado').textContent = '---';
+        bcvEquivalencia.style.display = 'none';
         return;
     }
 
-    const tasa = infoTasa.tasa;
-    document.getElementById('tasaInfo').innerHTML = `Tasa ${origen} → ${destino}: <strong>${tasa.toLocaleString('es-ES')}</strong>`;
+    const tasaCruzada = infoTasa.tasa;
+    document.getElementById('tasaInfo').innerHTML = `Tasa ${origen} → ${destino}: <strong>${tasaCruzada.toLocaleString('es-ES')}</strong>`;
+
+    const monedaBCV = document.getElementById('monedaBCV').value;
+    const tasaBCV = TASAS_BCV[monedaBCV] || 0;
+    const montoBCVDeseado = parseFloat(document.getElementById('montoBCVDeseado').value) || 0;
 
     let resultado = 0;
     let moneda = '';
 
-    if (operacion === 'multiplicar') {
-        resultado = monto * tasa;
-        moneda = infoTasa.monedaMult;
-        document.getElementById('lblResultadoTitle').textContent = 'Resultado (Monto × Tasa)';
+    // Caso A: El usuario solicita un monto exacto en USD/EUR que quiere recibir
+    if (esVenezuelaInvolucrado && montoBCVDeseado > 0 && tasaBCV > 0) {
+        const bsRequeridos = montoBCVDeseado * tasaBCV;
+
+        if (destino === 'Venezuela') {
+            resultado = bsRequeridos;
+            moneda = 'Bs';
+            document.getElementById('lblResultadoTitle').textContent = `Bolívares requeridos (para $${montoBCVDeseado} ${monedaBCV} BCV)`;
+
+            let montoOrigenNecesario = 0;
+            if (operacion === 'multiplicar') {
+                montoOrigenNecesario = bsRequeridos / tasaCruzada;
+            } else {
+                montoOrigenNecesario = bsRequeridos * tasaCruzada;
+            }
+
+            bcvEquivalencia.style.display = 'block';
+            bcvEquivalencia.innerHTML = `💵 Para recibir <strong>$${montoBCVDeseado} ${monedaBCV}</strong> en Venezuela (Tasa BCV: ${tasaBCV.toFixed(2)} Bs), la persona debe enviar: <strong>${montoOrigenNecesario.toFixed(2)} en moneda de ${origen}</strong>.`;
+        } else if (origen === 'Venezuela') {
+            resultado = bsRequeridos;
+            moneda = 'Bs';
+            document.getElementById('lblResultadoTitle').textContent = `Bolívares a enviar (equivalentes a $${montoBCVDeseado} ${monedaBCV} BCV)`;
+
+            let montoDestinoRecibido = 0;
+            if (operacion === 'multiplicar') {
+                montoDestinoRecibido = bsRequeridos * tasaCruzada;
+            } else {
+                montoDestinoRecibido = bsRequeridos / tasaCruzada;
+            }
+
+            bcvEquivalencia.style.display = 'block';
+            bcvEquivalencia.innerHTML = `💵 $${montoBCVDeseado} ${monedaBCV} equivalen a <strong>${bsRequeridos.toFixed(2)} Bs</strong>. Al cambiarlos a ${destino}, recibirás: <strong>${montoDestinoRecibido.toFixed(2)} en moneda de ${destino}</strong>.`;
+        }
     } else {
-        resultado = tasa !== 0 ? monto / tasa : 0;
-        moneda = infoTasa.monedaDiv;
-        document.getElementById('lblResultadoTitle').textContent = 'Resultado (Monto ÷ Tasa)';
+        // Caso B: Cálculo estándar por monto ingresado
+        if (operacion === 'multiplicar') {
+            resultado = montoInput * tasaCruzada;
+            moneda = infoTasa.monedaMult;
+            document.getElementById('lblResultadoTitle').textContent = 'Resultado (Monto × Tasa)';
+        } else {
+            resultado = tasaCruzada !== 0 ? montoInput / tasaCruzada : 0;
+            moneda = infoTasa.monedaDiv;
+            document.getElementById('lblResultadoTitle').textContent = 'Resultado (Monto ÷ Tasa)';
+        }
+
+        // Equivalencias BCV cuando Venezuela interviene
+        if (esVenezuelaInvolucrado && tasaBCV > 0) {
+            bcvEquivalencia.style.display = 'block';
+
+            if (moneda === 'Bs') {
+                const equivalenciaUSD = resultado / tasaBCV;
+                bcvEquivalencia.innerHTML = `🏛️ Equivalente BCV: <strong>$${equivalenciaUSD.toFixed(2)} ${monedaBCV}</strong> (Tasa: ${tasaBCV.toFixed(2)} Bs)`;
+            } else if (origen === 'Venezuela') {
+                const equivalenciaUSD = montoInput / tasaBCV;
+                bcvEquivalencia.innerHTML = `🏛️ Los ${montoInput} Bs enviados equivalen a <strong>$${equivalenciaUSD.toFixed(2)} ${monedaBCV}</strong> según tasa oficial BCV (${tasaBCV.toFixed(2)} Bs).`;
+            } else {
+                bcvEquivalencia.style.display = 'none';
+            }
+        } else {
+            bcvEquivalencia.style.display = 'none';
+        }
     }
 
     const resFormateado = resultado.toLocaleString('es-ES', {
@@ -101,15 +204,17 @@ function cargarTabla() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const inputs = ['origen', 'destino', 'monto', 'operacion'];
+    const inputs = ['origen', 'destino', 'monto', 'operacion', 'monedaBCV', 'montoBCVDeseado'];
     inputs.forEach(id => {
-        document.getElementById(id).addEventListener('change', calcular);
-        document.getElementById(id).addEventListener('input', calcular);
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', calcular);
+            el.addEventListener('input', calcular);
+        }
     });
 
     document.getElementById('swapBtn').addEventListener('click', intercambiarPaises);
     document.getElementById('verTasasBtn').addEventListener('click', toggleTabla);
 
-    // Cargar tasas al iniciar
     obtenerTasas();
 });
