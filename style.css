@@ -51,19 +51,19 @@ body {
 
 .form-group label {
     display: block;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
-    color: #ffffff;
+    color: #e0e0e0;
     margin-bottom: 8px;
 }
 
 .form-control {
     width: 100%;
-    padding: 14px 16px;
+    padding: 12px 14px;
     background-color: #2a2a2d;
     border: 1px solid #3a3a3c;
     border-radius: 12px;
-    font-size: 16px;
+    font-size: 15px;
     color: #ffffff;
     outline: none;
     transition: border-color 0.2s;
@@ -106,6 +106,53 @@ select.form-control {
     background-color: #3a3a3c;
 }
 
+/* Sección BCV */
+.bcv-section {
+    background-color: #252528;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid #3a3a3c;
+}
+
+.bcv-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.bcv-card {
+    padding: 10px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.bcv-card.usd {
+    background: linear-gradient(135deg, #1e5e37, #132f20);
+    border: 1px solid #2ecc71;
+}
+
+.bcv-card.eur {
+    background: linear-gradient(135deg, #1b3a4b, #002855);
+    border: 1px solid #3498db;
+}
+
+.bcv-label {
+    display: block;
+    font-size: 11px;
+    color: #a0a0a0;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.bcv-value {
+    display: block;
+    font-size: 16px;
+    font-weight: 700;
+    color: #ffffff;
+}
+
 .tasa-info-card {
     background-color: #28282b;
     border-radius: 12px;
@@ -138,9 +185,19 @@ select.form-control {
 }
 
 .result-amount {
-    font-size: 30px;
+    font-size: 28px;
     font-weight: 800;
     color: #2ecc71;
+}
+
+.bcv-equivalencia {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.2);
+    font-size: 13px;
+    color: #3498db;
+    line-height: 1.4;
+    font-weight: 600;
 }
 
 .btn-secondary {
