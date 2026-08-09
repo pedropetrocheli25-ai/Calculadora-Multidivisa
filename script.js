@@ -70,7 +70,6 @@ function calcular() {
     const bcvEquivalencia = document.getElementById('bcvEquivalencia');
     const esVenezuelaInvolucrado = (origen === 'Venezuela' || destino === 'Venezuela');
 
-    // Mostrar u ocultar sección BCV según participación de Venezuela
     if (esVenezuelaInvolucrado) {
         bcvSection.style.display = 'block';
         if (TASAS_BCV.USD === 0) {
@@ -100,7 +99,6 @@ function calcular() {
     let resultado = 0;
     let moneda = '';
 
-    // Caso A: El usuario solicita un monto exacto en USD/EUR que quiere recibir
     if (esVenezuelaInvolucrado && montoBCVDeseado > 0 && tasaBCV > 0) {
         const bsRequeridos = montoBCVDeseado * tasaBCV;
 
@@ -134,7 +132,6 @@ function calcular() {
             bcvEquivalencia.innerHTML = `💵 $${montoBCVDeseado} ${monedaBCV} equivalen a <strong>${bsRequeridos.toFixed(2)} Bs</strong>. Al cambiarlos a ${destino}, recibirás: <strong>${montoDestinoRecibido.toFixed(2)} en moneda de ${destino}</strong>.`;
         }
     } else {
-        // Caso B: Cálculo estándar por monto ingresado
         if (operacion === 'multiplicar') {
             resultado = montoInput * tasaCruzada;
             moneda = infoTasa.monedaMult;
@@ -145,7 +142,6 @@ function calcular() {
             document.getElementById('lblResultadoTitle').textContent = 'Resultado (Monto ÷ Tasa)';
         }
 
-        // Equivalencias BCV cuando Venezuela interviene
         if (esVenezuelaInvolucrado && tasaBCV > 0) {
             bcvEquivalencia.style.display = 'block';
 
@@ -169,6 +165,34 @@ function calcular() {
     });
 
     document.getElementById('resultado').textContent = `${moneda} ${resFormateado}`;
+}
+
+// FUNCIÓN PARA ENVIAR POR WHATSAPP
+function enviarWhatsApp() {
+    const origen = document.getElementById('origen').value;
+    const destino = document.getElementById('destino').value;
+    const monto = document.getElementById('monto').value;
+    const resultadoText = document.getElementById('resultado').textContent;
+    const tasaInfoText = document.getElementById('tasaInfo').innerText;
+    const bcvEquiv = document.getElementById('bcvEquivalencia');
+
+    let mensaje = `💸 *COTIZACIÓN DE REMESA*\n`;
+    mensaje += `-----------------------------------\n`;
+    mensaje += `🌎 *Ruta:* ${origen} ➔ ${destino}\n`;
+    mensaje += `💰 *Monto ingresado:* ${monto}\n`;
+    mensaje += `📊 *Tasa:* ${tasaInfoText}\n`;
+    mensaje += `-----------------------------------\n`;
+    mensaje += `🎯 *RESULTADO FINAL:* *${resultadoText}*\n`;
+
+    if (bcvEquiv && bcvEquiv.style.display !== 'none' && bcvEquiv.innerText.trim() !== '') {
+        mensaje += `\n${bcvEquiv.innerText}\n`;
+    }
+
+    mensaje += `-----------------------------------\n`;
+    mensaje += `📱 _Enviado desde Calculadora Multidivisa_`;
+
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
+    window.open(url, '_blank');
 }
 
 function intercambiarPaises() {
@@ -215,6 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('swapBtn').addEventListener('click', intercambiarPaises);
     document.getElementById('verTasasBtn').addEventListener('click', toggleTabla);
+    document.getElementById('btnWhatsapp').addEventListener('click', enviarWhatsApp);
 
     obtenerTasas();
 });
