@@ -106,7 +106,6 @@ select.form-control {
     background-color: #3a3a3c;
 }
 
-/* Sección BCV */
 .bcv-section {
     background-color: #252528;
     border-radius: 14px;
@@ -174,7 +173,7 @@ select.form-control {
     border-radius: 16px;
     padding: 20px;
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
 }
 
 .result-title {
@@ -198,6 +197,26 @@ select.form-control {
     color: #3498db;
     line-height: 1.4;
     font-weight: 600;
+}
+
+/* BOTÓN WHATSAPP */
+.btn-whatsapp {
+    width: 100%;
+    padding: 14px;
+    background-color: #25D366;
+    border: none;
+    border-radius: 12px;
+    color: #000000;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 12px;
+    transition: transform 0.1s, background-color 0.2s;
+}
+
+.btn-whatsapp:active {
+    transform: scale(0.98);
+    background-color: #20ba5a;
 }
 
 .btn-secondary {
