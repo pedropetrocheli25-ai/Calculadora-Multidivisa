@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Remesas Pro + BCV</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Título -->
+        <h1>💸 Remesas Pro + BCV</h1>
+        
+        <!-- Tasas BCV en tiempo real -->
+        <div class="bcv-container">
+            <div class="bcv-card">
+                <span class="bcv-label">🇺🇸 USD BCV</span>
+                <span class="bcv-value" id="usdValue">Cargando...</span>
+            </div>
+            <div class="bcv-card">
+                <span class="bcv-label">🇪🇺 EUR BCV</span>
+                <span class="bcv-value" id="eurValue">Cargando...</span>
+            </div>
+        </div>
+
+        <!-- Formulario -->
+        <div class="form-group">
+            <label for="origen">🌍 País Origen</label>
+            <select id="origen">
+                <option value="Perú">Perú</option>
+                <option value="Venezuela">Venezuela</option>
+                <option value="Colombia">Colombia</option>
+                <option value="Brasil">Brasil</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="destino">🎯 País Destino</label>
+            <select id="destino">
+                <option value="Venezuela">Venezuela</option>
+                <option value="Perú">Perú</option>
+                <option value="Colombia">Colombia</option>
+                <option value="Brasil">Brasil</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="tipoCalculo">📊 Tipo de Cálculo</label>
+            <select id="tipoCalculo">
+                <option value="llegada">Calcular llegada en USD/EUR</option>
+                <option value="envio">Calcular envío desde USD/EUR</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="monto">💰 Monto</label>
+            <input type="number" id="monto" placeholder="Ingresa el monto" step="any">
+        </div>
+
+        <div class="form-group">
+            <label for="operacion">⚙️ Operación</label>
+            <select id="operacion">
+                <option value="multiplicar">Multiplicar (×)</option>
+                <option value="dividir">Dividir (÷)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="monedaBCV">🔄 Moneda BCV</label>
+            <select id="monedaBCV">
+                <option value="USD">USD (Dólar)</option>
+                <option value="EUR">EUR (Euro)</option>
+            </select>
+        </div>
+
+        <button id="calcularBtn">📱 Calcular</button>
+
+        <!-- Resultado -->
+        <div class="result-container" id="resultContainer">
+            <div class="result-box">
+                <span class="result-label">Resultado</span>
+                <span class="result-value" id="resultado">0.00</span>
+                <span class="result-moneda" id="monedaResultado">Bs</span>
+            </div>
+            <div class="detalle-container" id="detalleContainer">
+                <small id="detalleCalculo"></small>
+            </div>
+        </div>
+
+        <!-- Tabla de tasas -->
+        <button id="verTasasBtn">📋 Ver tabla de tasas</button>
+        <div id="tablaTasas" style="display:none; margin-top: 20px;">
+            <table id="tablaTasasBody">
+                <thead>
+                    <tr>
+                        <th>Origen</th>
+                        <th>Destino</th>
+                        <th>Tasa</th>
+                        <th>Moneda</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaTasasContent"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
