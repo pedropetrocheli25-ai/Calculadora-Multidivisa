@@ -2,246 +2,174 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
 }
 
 body {
-    background: #0a0e1a;
+    background-color: #121212;
+    color: #ffffff;
     min-height: 100vh;
     display: flex;
     justify-content: center;
-    align-items: flex-start;
-    padding: 20px;
+    align-items: center;
+    padding: 16px;
 }
 
 .container {
-    max-width: 520px;
     width: 100%;
-    margin: 0 auto;
+    max-width: 440px;
 }
 
-/* Header */
 .header {
     text-align: center;
-    margin-bottom: 24px;
-    padding: 20px;
-    background: linear-gradient(135deg, #1a1a3e, #2d1b4e);
-    border-radius: 20px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    margin-bottom: 20px;
 }
 
 .header h1 {
-    font-size: 28px;
+    font-size: 24px;
     font-weight: 700;
-    color: #ffffff;
-    letter-spacing: -0.5px;
+    margin-bottom: 8px;
 }
 
 .header .subtitle {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.6);
-    margin-top: 4px;
+    font-size: 13px;
+    color: #a0a0a0;
+    line-height: 1.4;
 }
 
-/* BCV Grid */
-.bcv-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 20px;
-}
-
-.bcv-card {
-    padding: 16px;
-    border-radius: 16px;
-    text-align: center;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-}
-
-.bcv-card.usd {
-    background: linear-gradient(135deg, #00b894, #00a381);
-}
-
-.bcv-card.eur {
-    background: linear-gradient(135deg, #0984e3, #6c5ce7);
-}
-
-.bcv-label {
-    display: block;
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.8);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.bcv-value {
-    display: block;
-    font-size: 22px;
-    font-weight: 700;
-    color: #ffffff;
-    margin-top: 4px;
-}
-
-/* Form Card */
-.form-card {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+.card {
+    background-color: #1e1e1e;
     border-radius: 20px;
-    padding: 20px;
-    margin-bottom: 20px;
+    padding: 24px;
+    border: 1px solid #2a2a2a;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
 .form-group {
     margin-bottom: 16px;
 }
 
-.form-group:last-child {
-    margin-bottom: 0;
-}
-
 .form-group label {
     display: block;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.7);
-    margin-bottom: 6px;
-    letter-spacing: 0.3px;
+    color: #ffffff;
+    margin-bottom: 8px;
 }
 
 .form-control {
     width: 100%;
-    padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 2px solid rgba(255, 255, 255, 0.08);
+    padding: 14px 16px;
+    background-color: #2a2a2d;
+    border: 1px solid #3a3a3c;
     border-radius: 12px;
     font-size: 16px;
     color: #ffffff;
-    transition: all 0.3s ease;
-    -webkit-appearance: none;
-    appearance: none;
     outline: none;
+    transition: border-color 0.2s;
 }
 
 .form-control:focus {
-    border-color: #6c5ce7;
-    background: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.15);
-}
-
-.form-control::placeholder {
-    color: rgba(255, 255, 255, 0.3);
-}
-
-.form-control option {
-    background: #1a1a3e;
-    color: #ffffff;
+    border-color: #2ecc71;
 }
 
 select.form-control {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='white' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a0a0a0' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 16px center;
-    padding-right: 44px;
+    padding-right: 40px;
 }
 
-/* Result Card */
-.result-card {
-    background: linear-gradient(135deg, #1a1a3e, #2d1b4e);
-    border-radius: 20px;
-    padding: 24px;
-    margin-bottom: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+.swap-container {
+    display: flex;
+    justify-content: center;
+    margin: -6px 0 10px 0;
 }
 
-.result-header {
+.btn-swap {
+    background-color: #2a2a2d;
+    border: 1px solid #3a3a3c;
+    color: #ffffff;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    font-size: 18px;
+    cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
+    justify-content: center;
 }
 
-.result-icon {
-    font-size: 18px;
+.btn-swap:active {
+    background-color: #3a3a3c;
 }
 
-.result-label {
+.tasa-info-card {
+    background-color: #28282b;
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
     font-size: 14px;
-    color: rgba(255, 255, 255, 0.5);
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    color: #a0a0a0;
+    margin-bottom: 16px;
 }
 
-.result-main {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
+.tasa-info-card strong {
+    color: #ffffff;
+    font-size: 16px;
+}
+
+.result-box {
+    background-color: #132f20;
+    border: 1px solid #1e5e37;
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.result-title {
+    display: block;
+    font-size: 13px;
+    color: #a0a0a0;
     margin-bottom: 8px;
 }
 
-.result-number {
-    font-size: 42px;
+.result-amount {
+    font-size: 30px;
     font-weight: 800;
-    color: #00d2d3;
-    line-height: 1;
-    letter-spacing: -1px;
+    color: #2ecc71;
 }
 
-.result-moneda {
-    font-size: 24px;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.5);
-}
-
-.result-detalle {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.4);
-    font-family: 'Courier New', monospace;
-    padding: 8px 12px;
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 8px;
-    margin-top: 8px;
-    overflow-wrap: break-word;
-    word-break: break-all;
-}
-
-.result-tasa {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.3);
-    margin-top: 6px;
-    padding: 6px 12px;
-    background: rgba(0, 0, 0, 0.15);
-    border-radius: 8px;
-    display: inline-block;
-}
-
-/* Botones */
 .btn-secondary {
     width: 100%;
     padding: 14px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 2px solid rgba(255, 255, 255, 0.08);
-    border-radius: 14px;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 14px;
+    background-color: #2a2a2d;
+    border: 1px solid #3a3a3c;
+    border-radius: 12px;
+    color: #ffffff;
+    font-size: 15px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
 }
 
-.btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.15);
-    color: #ffffff;
+.modal-tasas {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #2a2a2a;
 }
 
-/* Tabla */
+.modal-tasas h3 {
+    font-size: 15px;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
 .table-container {
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 16px;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    max-height: 220px;
+    overflow-y: auto;
 }
 
 table {
@@ -250,60 +178,12 @@ table {
     font-size: 14px;
 }
 
-th {
-    padding: 12px 14px;
+th, td {
+    padding: 10px;
     text-align: left;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.5);
-    background: rgba(255, 255, 255, 0.03);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    border-bottom: 1px solid #2a2a2a;
 }
 
-td {
-    padding: 10px 14px;
-    color: rgba(255, 255, 255, 0.7);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-}
-
-tr:last-child td {
-    border-bottom: none;
-}
-
-/* Footer */
-.footer {
-    text-align: center;
-    margin-top: 20px;
-    padding: 12px;
-}
-
-.footer p {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.2);
-    letter-spacing: 0.5px;
-}
-
-/* Responsive */
-@media (max-width: 450px) {
-    body {
-        padding: 12px;
-    }
-    
-    .header h1 {
-        font-size: 22px;
-    }
-    
-    .bcv-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .result-number {
-        font-size: 32px;
-    }
-    
-    .form-card {
-        padding: 16px;
-    }
+th {
+    color: #a0a0a0;
 }
