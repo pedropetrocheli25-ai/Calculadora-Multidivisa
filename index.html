@@ -38,8 +38,35 @@
                 </select>
             </div>
 
-            <div class="form-group">
-                <label>Monto</label>
+            <!-- Sección BCV (Solo si Venezuela es Origen o Destino) -->
+            <div id="bcvSection" class="bcv-section" style="display: none;">
+                <div class="bcv-grid">
+                    <div class="bcv-card usd">
+                        <span class="bcv-label">🇺🇸 USD BCV</span>
+                        <span class="bcv-value" id="bcvUsd">Cargando...</span>
+                    </div>
+                    <div class="bcv-card eur">
+                        <span class="bcv-label">🇪🇺 EUR BCV</span>
+                        <span class="bcv-value" id="bcvEur">Cargando...</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Moneda BCV para cálculo</label>
+                    <select id="monedaBCV" class="form-control">
+                        <option value="USD">💵 Dólar (USD)</option>
+                        <option value="EUR">💶 Euro (EUR)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>🎯 ¿Deseas recibir un monto exacto en USD/EUR? (Opcional)</label>
+                    <input type="number" id="montoBCVDeseado" class="form-control" placeholder="Ej: 10" step="any">
+                </div>
+            </div>
+
+            <div class="form-group" id="montoGroup">
+                <label id="lblMonto">Monto a Enviar / Convertir</label>
                 <input type="number" id="monto" class="form-control" value="100" placeholder="0.00" step="any">
             </div>
 
@@ -56,8 +83,9 @@
             </div>
 
             <div class="result-box">
-                <span class="result-title" id="lblResultadoTitle">Resultado (Monto × Tasa)</span>
+                <span class="result-title" id="lblResultadoTitle">Resultado</span>
                 <div class="result-amount" id="resultado">Bs 0,00</div>
+                <div id="bcvEquivalencia" class="bcv-equivalencia" style="display: none;"></div>
             </div>
 
             <button class="btn-secondary" id="verTasasBtn">Ver tabla de tasas</button>
