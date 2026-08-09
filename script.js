@@ -1,5 +1,5 @@
 // ============================================
-// CONFIGURACIÓN DE TASAS CRUZADAS MANUALES
+// TASAS CRUZADAS MANUALES (TODAS LAS QUE PEDISTE)
 // ============================================
 const TASAS_MANUALES = [
     { origen: 'Perú', destino: 'Venezuela', tasa: 240.10, moneda: 'Bs' },
@@ -17,23 +17,24 @@ const TASAS_MANUALES = [
 ];
 
 // ============================================
-// OBTENER TASAS BCV (API)
+// OBTENER TASAS BCV (API pública)
 // ============================================
 async function obtenerTasasBCV() {
     try {
-        // API para USD/VES y EUR/VES
-        const responseUSD = await fetch('https://api.exchangerate.host/latest?base=USD&symbols=VES');
-        const dataUSD = await responseUSD.json();
-        const tasaUSD = dataUSD.rates.VES;
+        const [resUSD, resEUR] = await Promise.all([
+            fetch('https://api.exchangerate.host/latest?base=USD&symbols=VES'),
+            fetch('https://api.exchangerate.host/latest?base=EUR&symbols=VES')
+        ]);
 
-        const responseEUR = await fetch('https://api.exchangerate.host/latest?base=EUR&symbols=VES');
-        const dataEUR = await responseEUR.json();
-        const tasaEUR = dataEUR.rates.VES;
+        const dataUSD = await resUSD.json();
+        const dataEUR = await resEUR.json();
 
-        return { USD: tasaUSD, EUR: tasaEUR };
+        return {
+            USD: dataUSD.rates.VES || 36.0,
+            EUR: dataEUR.rates.VES || 40.0
+        };
     } catch (error) {
-        console.error('Error obteniendo tasas BCV:', error);
-        // Tasas de respaldo (por si falla la API)
+        console.error('Error BCV:', error);
         return { USD: 36.0, EUR: 40.0 };
     }
 }
@@ -56,7 +57,7 @@ function obtenerMonedaDestino(origen, destino) {
 }
 
 // ============================================
-// ACTUALIZAR TASAS BCV EN PANTALLA
+// ACTUALIZAR BCV EN PANTALLA
 // ============================================
 async function actualizarBCV() {
     const tasas = await obtenerTasasBCV();
@@ -66,20 +67,24 @@ async function actualizarBCV() {
 }
 
 // ============================================
-// CALCULAR
+// CALCULAR AUTOMÁTICAMENTE
 // ============================================
 async function calcular() {
     // Obtener valores
     const origen = document.getElementById('origen').value;
     const destino = document.getElementById('destino').value;
     const tipoCalculo = document.getElementById('tipoCalculo').value;
-    const monto = parseFloat(document.getElementById('monto').value);
+    const montoInput = document.getElementById('monto').value;
     const operacion = document.getElementById('operacion').value;
     const monedaBCV = document.getElementById('monedaBCV').value;
 
     // Validar
-    if (!monto || monto <= 0) {
-        document.getElementById('resultado').textContent = '❌ Monto inválido';
+    const monto = parseFloat(montoInput);
+    if (isNaN(monto) || monto <= 0) {
+        document.getElementById('resultado').textContent = '0.00';
+        document.getElementById('monedaResultado').textContent = '---';
+        document.getElementById('detalleCalculo').textContent = 'Ingresa un monto válido';
+        document.getElementById('tasaUsada').textContent = '';
         return;
     }
 
@@ -89,40 +94,55 @@ async function calcular() {
     const monedaDestino = obtenerMonedaDestino(origen, destino);
 
     if (!tasaManual) {
-        document.getElementById('resultado').textContent = '❌ Tasa manual no encontrada';
+        document.getElementById('resultado').textContent = '❌';
+        document.getElementById('monedaResultado').textContent = 'Error';
+        document.getElementById('detalleCalculo').textContent = `No hay tasa para ${origen} → ${destino}`;
+        document.getElementById('tasaUsada').textContent = '';
         return;
     }
 
-    // Aplicar operación (multiplicar o dividir sobre la tasa manual)
-    let tasaManualAjustada = tasaManual;
+    // Aplicar operación sobre tasa manual
+    let tasaAjustada = tasaManual;
+    let operacionTexto = '';
     if (operacion === 'dividir') {
-        tasaManualAjustada = 1 / tasaManual;
+        tasaAjustada = 1 / tasaManual;
+        operacionTexto = `1 / ${tasaManual.toFixed(4)} = ${tasaAjustada.toFixed(6)}`;
+    } else {
+        operacionTexto = `${tasaManual.toFixed(4)} (sin cambios)`;
     }
 
-    let resultado, detalle, monedaResultado;
+    // Variables para resultado
+    let resultado, monedaResultado, detalle, tasaUsadaTexto;
+
+    const tasaBCV = tasasBCV[monedaBCV];
 
     if (tipoCalculo === 'llegada') {
-        // OPERACIÓN 1: Llegada en USD/EUR
-        // (Monto * TasaManual) / TasaBCV
-        const paso1 = monto * tasaManualAjustada;
-        const tasaBCV = tasasBCV[monedaBCV];
+        // 📥 Llegada: (Monto * TasaManual) / TasaBCV
+        const paso1 = monto * tasaAjustada;
         resultado = paso1 / tasaBCV;
         monedaResultado = monedaBCV;
-        detalle = `${monto} ${monedaDestino} × ${tasaManualAjustada.toFixed(4)} = ${paso1.toFixed(2)} Bs → ${paso1.toFixed(2)} / ${tasaBCV.toFixed(2)} = ${resultado.toFixed(4)} ${monedaBCV}`;
+        detalle = `${monto} ${monedaDestino} × ${tasaAjustada.toFixed(6)} = ${paso1.toFixed(2)} Bs → ${paso1.toFixed(2)} / ${tasaBCV.toFixed(2)} = ${resultado.toFixed(4)} ${monedaBCV}`;
+        tasaUsadaTexto = `Tasa manual: ${tasaManual.toFixed(4)} ${monedaDestino} → Bs | BCV: ${tasaBCV.toFixed(2)} Bs/${monedaBCV}`;
     } else {
-        // OPERACIÓN 2: Envío desde USD/EUR
-        // (Monto * TasaBCV) / TasaManual
-        const tasaBCV = tasasBCV[monedaBCV];
+        // 📤 Envío: (Monto * TasaBCV) / TasaManual
         const paso1 = monto * tasaBCV;
-        resultado = paso1 / tasaManualAjustada;
+        resultado = paso1 / tasaAjustada;
         monedaResultado = monedaDestino;
-        detalle = `${monto} ${monedaBCV} × ${tasaBCV.toFixed(2)} = ${paso1.toFixed(2)} Bs → ${paso1.toFixed(2)} / ${tasaManualAjustada.toFixed(4)} = ${resultado.toFixed(4)} ${monedaDestino}`;
+        detalle = `${monto} ${monedaBCV} × ${tasaBCV.toFixed(2)} = ${paso1.toFixed(2)} Bs → ${paso1.toFixed(2)} / ${tasaAjustada.toFixed(6)} = ${resultado.toFixed(4)} ${monedaDestino}`;
+        tasaUsadaTexto = `Tasa manual: ${tasaManual.toFixed(4)} ${monedaDestino} | BCV: ${tasaBCV.toFixed(2)} Bs/${monedaBCV}`;
     }
 
     // Mostrar resultado
     document.getElementById('resultado').textContent = resultado.toFixed(4);
     document.getElementById('monedaResultado').textContent = monedaResultado;
     document.getElementById('detalleCalculo').textContent = detalle;
+    document.getElementById('tasaUsada').textContent = `🔹 ${tasaUsadaTexto} | Operación: ${operacionTexto}`;
+
+    // Aplicar color según el valor (verde si es positivo)
+    const resultCard = document.getElementById('resultCard');
+    if (resultado > 0) {
+        document.getElementById('resultado').style.color = '#00d2d3';
+    }
 }
 
 // ============================================
@@ -145,37 +165,35 @@ function mostrarTablaTasas() {
             content.appendChild(row);
         });
         tabla.style.display = 'block';
+        document.getElementById('verTasasBtn').textContent = '📋 Ocultar tasas';
     } else {
         tabla.style.display = 'none';
+        document.getElementById('verTasasBtn').textContent = '📋 Ver todas las tasas cruzadas';
     }
 }
 
 // ============================================
-// EVENTOS
+// INICIALIZAR
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
+    // Mostrar BCV
     await actualizarBCV();
     
-    // Actualizar BCV cada 60 segundos
+    // Actualizar cada 30 segundos
     setInterval(async () => {
         await actualizarBCV();
-    }, 60000);
-});
+    }, 30000);
 
-document.getElementById('calcularBtn').addEventListener('click', calcular);
-
-document.getElementById('verTasasBtn').addEventListener('click', mostrarTablaTasas);
-
-// Cálculo automático al cambiar cualquier campo
-document.querySelectorAll('select, input').forEach(el => {
-    el.addEventListener('change', () => {
-        if (document.getElementById('monto').value) {
-            calcular();
-        }
+    // Calcular automáticamente al cambiar cualquier campo
+    const elementos = document.querySelectorAll('.form-control');
+    elementos.forEach(el => {
+        el.addEventListener('change', calcular);
+        el.addEventListener('input', calcular);
     });
-    el.addEventListener('input', () => {
-        if (document.getElementById('monto').value) {
-            calcular();
-        }
-    });
+
+    // Botón de tabla
+    document.getElementById('verTasasBtn').addEventListener('click', mostrarTablaTasas);
+
+    // Cálculo inicial
+    setTimeout(calcular, 300);
 });
