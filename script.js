@@ -17,6 +17,7 @@ async function obtenerBCV() {
         document.getElementById('bcvUsd').textContent = `${TASAS_BCV.USD.toFixed(2)} Bs`;
         document.getElementById('bcvEur').textContent = `${TASAS_BCV.EUR.toFixed(2)} Bs`;
         calcular();
+        generarTarifario();
     } catch (e) {
         console.error('Error cargando BCV principal:', e);
         try {
@@ -27,6 +28,7 @@ async function obtenerBCV() {
                 document.getElementById('bcvUsd').textContent = `${TASAS_BCV.USD.toFixed(2)} Bs`;
                 document.getElementById('bcvEur').textContent = `${TASAS_BCV.EUR.toFixed(2)} Bs`;
                 calcular();
+                generarTarifario();
             }
         } catch(err) {
             document.getElementById('bcvUsd').textContent = 'Error';
@@ -52,6 +54,7 @@ async function obtenerTasas() {
         }));
 
         calcular();
+        generarTarifario();
     } catch (error) {
         console.error('Error al cargar las tasas:', error);
         tasaInfo.innerHTML = '⚠️ Error al cargar las tasas desde Google Sheets';
@@ -167,7 +170,120 @@ function calcular() {
     document.getElementById('resultado').textContent = `${moneda} ${resFormateado}`;
 }
 
-// FUNCIÓN PARA ENVIAR POR WHATSAPP
+// LÓGICA DEL TARIFARIO DINÁMICO
+function generarTarifario() {
+    const tipo = document.getElementById('tipoTarifario').value;
+    const contenedor = document.getElementById('contenedorTarifario');
+    const header = document.getElementById('headerTarifario');
+    const thead = document.getElementById('theadTarifario');
+    const tbody = document.getElementById('tbodyTarifario');
+
+    if (tipo === 'ninguno') {
+        contenedor.style.display = 'none';
+        return;
+    }
+
+    const infoPeruVen = TASAS_MANUALES.find(t => t.origen === 'Perú' && t.destino === 'Venezuela');
+    const tasaPeruVen = infoPeruVen ? infoPeruVen.tasa : 0;
+    const tasaBCV = TASAS_BCV.USD || 0;
+
+    if (tasaPeruVen === 0 || tasaBCV === 0) {
+        header.innerHTML = '⚠️ Cargando datos de tasas para tarifario...';
+        contenedor.style.display = 'block';
+        thead.innerHTML = '';
+        tbody.innerHTML = '';
+        return;
+    }
+
+    contenedor.style.display = 'block';
+
+    if (tipo === 'soles') {
+        header.innerHTML = `📋 <strong>TARIFARIO EN SOLES A BOLÍVARES</strong><br>` +
+                           `<small>🕐 Tasa BCV: ${tasaBCV.toFixed(2)} Bs | Perú - Ven Configurada: ${tasaPeruVen.toLocaleString('es-ES')}</small>`;
+        
+        thead.innerHTML = `<tr><th>Enviado</th><th>Recibes (Bs)</th><th>Equivalente</th></tr>`;
+        
+        const montosSoles = [10, 20, 30, 50, 100, 150, 200, 300, 500, 1000];
+        let htmlRows = '';
+
+        montosSoles.forEach(monto => {
+            const recibesBs = monto * tasaPeruVen;
+            const equivUSD = recibesBs / tasaBCV;
+            htmlRows += `<tr>
+                <td>${monto} S/</td>
+                <td>${recibesBs.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td>${equivUSD.toFixed(2)}$</td>
+            </tr>`;
+        });
+        tbody.innerHTML = htmlRows;
+
+    } else if (tipo === 'usd') {
+        header.innerHTML = `📋 <strong>TARIFARIO EN USD</strong><br>` +
+                           `<small>🕐 Tasa BCV: ${tasaBCV.toFixed(2)} Bs | Perú - Ven Configurada: ${tasaPeruVen.toLocaleString('es-ES')}</small>`;
+
+        thead.innerHTML = `<tr><th>Dólares</th><th>Recibes (Bs)</th><th>Equivalente</th></tr>`;
+
+        const montosUSD = [10, 20, 30, 50, 100, 150, 200, 250, 300, 500];
+        let htmlRows = '';
+
+        montosUSD.forEach(monto => {
+            const recibesBs = monto * tasaBCV;
+            const equivSoles = recibesBs / tasaPeruVen;
+            htmlRows += `<tr>
+                <td>${monto}$</td>
+                <td>${recibesBs.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td>${equivSoles.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} S/</td>
+            </tr>`;
+        });
+        tbody.innerHTML = htmlRows;
+    }
+}
+
+// ENVIAR TARIFARIO POR WHATSAPP
+function enviarTarifarioWhatsApp() {
+    const tipo = document.getElementById('tipoTarifario').value;
+    const infoPeruVen = TASAS_MANUALES.find(t => t.origen === 'Perú' && t.destino === 'Venezuela');
+    const tasaPeruVen = infoPeruVen ? infoPeruVen.tasa : 0;
+    const tasaBCV = TASAS_BCV.USD || 0;
+
+    if (tipo === 'ninguno' || tasaPeruVen === 0 || tasaBCV === 0) return;
+
+    let mensaje = '';
+
+    if (tipo === 'soles') {
+        mensaje += `📋 *TARIFARIO EN SOLES A BOLÍVARES*\n`;
+        mensaje += `🕐 Tasa BCV: ${tasaBCV.toFixed(2)} Bs | Perú - Ven Configurada: ${tasaPeruVen.toLocaleString('es-ES')}\n\n`;
+        mensaje += `Enviado | Recibes (Bs) | Equivalente\n`;
+        mensaje += `---------------------------------\n`;
+
+        const montosSoles = [10, 20, 30, 50, 100, 150, 200, 300, 500, 1000];
+        montosSoles.forEach(monto => {
+            const recibesBs = monto * tasaPeruVen;
+            const equivUSD = recibesBs / tasaBCV;
+            mensaje += `${monto} S/ | ${recibesBs.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} | ${equivUSD.toFixed(2)}$\n`;
+        });
+
+    } else if (tipo === 'usd') {
+        mensaje += `📋 *TARIFARIO EN USD*\n`;
+        mensaje += `🕐 Tasa BCV: ${tasaBCV.toFixed(2)} Bs | Perú - Ven Configurada: ${tasaPeruVen.toLocaleString('es-ES')}\n\n`;
+        mensaje += `Dólares | Recibes (Bs) | Equivalente\n`;
+        mensaje += `---------------------------------\n`;
+
+        const montosUSD = [10, 20, 30, 50, 100, 150, 200, 250, 300, 500];
+        montosUSD.forEach(monto => {
+            const recibesBs = monto * tasaBCV;
+            const equivSoles = recibesBs / tasaPeruVen;
+            mensaje += `${monto}$ | ${recibesBs.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} | ${equivSoles.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} S/\n`;
+        });
+    }
+
+    mensaje += `---------------------------------\n`;
+    mensaje += `📱 _Enviado desde Calculadora Multidivisa_`;
+
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
+    window.open(url, '_blank');
+}
+
 function enviarWhatsApp() {
     const origen = document.getElementById('origen').value;
     const destino = document.getElementById('destino').value;
@@ -237,9 +353,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    document.getElementById('tipoTarifario').addEventListener('change', generarTarifario);
     document.getElementById('swapBtn').addEventListener('click', intercambiarPaises);
     document.getElementById('verTasasBtn').addEventListener('click', toggleTabla);
     document.getElementById('btnWhatsapp').addEventListener('click', enviarWhatsApp);
+    document.getElementById('btnWhatsappTarifario').addEventListener('click', enviarTarifarioWhatsApp);
 
     obtenerTasas();
 });
