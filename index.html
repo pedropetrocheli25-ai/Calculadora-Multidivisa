@@ -88,10 +88,32 @@
                 <div id="bcvEquivalencia" class="bcv-equivalencia" style="display: none;"></div>
             </div>
 
-            <!-- BOTÓN WHATSAPP -->
-            <button class="btn-whatsapp" id="btnWhatsapp">📲 Compartir por WhatsApp</button>
+            <!-- BOTÓN WHATSAPP CÁLCULO -->
+            <button class="btn-whatsapp" id="btnWhatsapp">📲 Compartir Cálculo por WhatsApp</button>
 
-            <button class="btn-secondary" id="verTasasBtn">Ver tabla de tasas</button>
+            <!-- NUEVA SECCIÓN: LISTA DESPLEGABLE DE TARIFARIOS -->
+            <div class="form-group" style="margin-top: 20px;">
+                <label>📋 Seleccionar Tarifario Rápido</label>
+                <select id="tipoTarifario" class="form-control">
+                    <option value="ninguno">-- Ver Tarifario --</option>
+                    <option value="soles">📋 Tarifario en Soles (S/)</option>
+                    <option value="usd">📋 Tarifario en USD ($)</option>
+                </select>
+            </div>
+
+            <!-- CONTENEDOR DE TARIFARIOS GENERADOS -->
+            <div id="contenedorTarifario" class="tarifario-card" style="display: none;">
+                <div id="headerTarifario" class="tarifario-header"></div>
+                <div class="table-container">
+                    <table>
+                        <thead id="theadTarifario"></thead>
+                        <tbody id="tbodyTarifario"></tbody>
+                    </table>
+                </div>
+                <button class="btn-whatsapp" id="btnWhatsappTarifario" style="margin-top: 14px;">📲 Compartir Tarifario por WhatsApp</button>
+            </div>
+
+            <button class="btn-secondary" id="verTasasBtn" style="margin-top: 12px;">Ver tabla de tasas</button>
 
             <div id="tablaTasas" class="modal-tasas" style="display: none;">
                 <h3>Tabla de Tasas Cruzadas</h3>
