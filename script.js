@@ -4,6 +4,22 @@ const API_URL = `https://opensheet.elk.sh/${SHEET_ID}/Hoja1`;
 let TASAS_MANUALES = [];
 let TASAS_BCV = { USD: 0, EUR: 0 };
 
+// FUNCIÓN DE REDONDEO ESPECIAL PARA SOLES (S/)
+function redondearSoles(valor) {
+    if (valor <= 0) return 0;
+    
+    const entero = Math.floor(valor);
+    const fraccion = Math.round((valor - entero) * 100) / 100;
+
+    if (fraccion === 0) {
+        return entero;
+    } else if (fraccion <= 0.50) {
+        return entero + 0.50;
+    } else {
+        return entero + 1.00;
+    }
+}
+
 async function obtenerBCV() {
     try {
         const [resUSD, resEUR] = await Promise.all([
@@ -117,8 +133,13 @@ function calcular() {
                 montoOrigenNecesario = bsRequeridos * tasaCruzada;
             }
 
+            // Aplicar redondeo en Soles si el origen es Perú
+            if (origen === 'Perú') {
+                montoOrigenNecesario = redondearSoles(montoOrigenNecesario);
+            }
+
             bcvEquivalencia.style.display = 'block';
-            bcvEquivalencia.innerHTML = `💵 Para recibir <strong>$${montoBCVDeseado} ${monedaBCV}</strong> en Venezuela (Tasa BCV: ${tasaBCV.toFixed(2)} Bs), la persona debe enviar: <strong>${montoOrigenNecesario.toFixed(2)} en moneda de ${origen}</strong>.`;
+            bcvEquivalencia.innerHTML = `💵 Para recibir <strong>$${montoBCVDeseado} ${monedaBCV}</strong> en Venezuela (Tasa BCV: ${tasaBCV.toFixed(2)} Bs), la persona debe enviar: <strong>${montoOrigenNecesario.toFixed(2)} ${origen === 'Perú' ? 'S/' : 'en moneda de ' + origen}</strong>.`;
         } else if (origen === 'Venezuela') {
             resultado = bsRequeridos;
             moneda = 'Bs';
@@ -131,8 +152,13 @@ function calcular() {
                 montoDestinoRecibido = bsRequeridos / tasaCruzada;
             }
 
+            // Aplicar redondeo en Soles si el destino es Perú
+            if (destino === 'Perú') {
+                montoDestinoRecibido = redondearSoles(montoDestinoRecibido);
+            }
+
             bcvEquivalencia.style.display = 'block';
-            bcvEquivalencia.innerHTML = `💵 $${montoBCVDeseado} ${monedaBCV} equivalen a <strong>${bsRequeridos.toFixed(2)} Bs</strong>. Al cambiarlos a ${destino}, recibirás: <strong>${montoDestinoRecibido.toFixed(2)} en moneda de ${destino}</strong>.`;
+            bcvEquivalencia.innerHTML = `💵 $${montoBCVDeseado} ${monedaBCV} equivalen a <strong>${bsRequeridos.toFixed(2)} Bs</strong>. Al cambiarlos a ${destino}, recibirás: <strong>${montoDestinoRecibido.toFixed(2)} ${destino === 'Perú' ? 'S/' : 'en moneda de ' + destino}</strong>.`;
         }
     } else {
         if (operacion === 'multiplicar') {
@@ -143,6 +169,11 @@ function calcular() {
             resultado = tasaCruzada !== 0 ? montoInput / tasaCruzada : 0;
             moneda = infoTasa.monedaDiv;
             document.getElementById('lblResultadoTitle').textContent = 'Resultado (Monto ÷ Tasa)';
+        }
+
+        // Aplicar redondeo especial si la moneda del resultado es Soles (S/ / Soles / Perú)
+        if (moneda.includes('S/') || moneda.toLowerCase().includes('sol') || destino === 'Perú') {
+            resultado = redondearSoles(resultado);
         }
 
         if (esVenezuelaInvolucrado && tasaBCV > 0) {
@@ -207,7 +238,7 @@ function generarTarifario() {
         let htmlRows = '';
 
         montosSoles.forEach(monto => {
-            const recibesBs = monto * tasaPeruVen;
+            const recibesBs = monto * tasaPeruVen; // Permanece exacto en Bs
             const equivUSD = recibesBs / tasaBCV;
             htmlRows += `<tr>
                 <td>${monto} S/</td>
@@ -227,8 +258,10 @@ function generarTarifario() {
         let htmlRows = '';
 
         montosUSD.forEach(monto => {
-            const recibesBs = monto * tasaBCV;
-            const equivSoles = recibesBs / tasaPeruVen;
+            const recibesBs = monto * tasaBCV; // Permanece exacto en Bs
+            // Redondeo especial en Soles aplicado aquí
+            const equivSoles = redondearSoles(recibesBs / tasaPeruVen);
+            
             htmlRows += `<tr>
                 <td>${monto}$</td>
                 <td>${recibesBs.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
@@ -272,7 +305,8 @@ function enviarTarifarioWhatsApp() {
         const montosUSD = [10, 20, 30, 50, 100, 150, 200, 250, 300, 500];
         montosUSD.forEach(monto => {
             const recibesBs = monto * tasaBCV;
-            const equivSoles = recibesBs / tasaPeruVen;
+            // Redondeo especial en Soles aplicado para el mensaje de WhatsApp
+            const equivSoles = redondearSoles(recibesBs / tasaPeruVen);
             mensaje += `${monto}$ | ${recibesBs.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} | ${equivSoles.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} S/\n`;
         });
     }
