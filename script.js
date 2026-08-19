@@ -1,5 +1,6 @@
 const SHEET_ID = '1JKBGVPGPRCKIQsj1MpEvNLylxx29eCU6iFLGYAJ0qnA'; 
-const API_URL = `https://opensheet.elk.sh/${SHEET_ID}/Hoja1`;
+const API_URL_PRIMARY = `https://opensheet.elk.sh/${SHEET_ID}/Hoja1`;
+const API_URL_FALLBACK = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
 
 let TASAS_MANUALES = [];
 let TASAS_BCV = { USD: 0, EUR: 0 };
@@ -53,27 +54,66 @@ async function obtenerBCV() {
     }
 }
 
+// Cargar tasas directamente desde Google API (Respaldo oficial)
+async function obtenerTasasDesdeGoogleDirecto() {
+    const res = await fetch(API_URL_FALLBACK);
+    const text = await res.text();
+    const jsonString = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
+    const data = JSON.parse(jsonString);
+
+    const cols = data.table.cols.map(c => c ? (c.label || c.id) : '');
+    const rows = data.table.rows;
+
+    return rows.map(r => {
+        const item = {};
+        if (r.c) {
+            r.c.forEach((cell, idx) => {
+                const key = cols[idx] ? cols[idx].trim() : `col_${idx}`;
+                item[key] = cell ? (cell.v !== null ? cell.v : '') : '';
+            });
+        }
+        return item;
+    });
+}
+
 async function obtenerTasas() {
     const tasaInfo = document.getElementById('tasaInfo');
     tasaInfo.innerHTML = 'Obteniendo tasas...';
 
-    try {
-        const respuesta = await fetch(API_URL);
-        const datos = await respuesta.json();
+    let datos = null;
 
+    // Intento 1: Servidor OpenSheet
+    try {
+        const respuesta = await fetch(API_URL_PRIMARY);
+        if (respuesta.ok) {
+            datos = await respuesta.json();
+        }
+    } catch (e) {
+        console.warn('OpenSheet no respondió, intentando conexión directa con Google...', e);
+    }
+
+    // Intento 2: Conexión directa con API de Google (Fallback)
+    if (!datos || !Array.isArray(datos) || datos.length === 0) {
+        try {
+            datos = await obtenerTasasDesdeGoogleDirecto();
+        } catch (e) {
+            console.error('Error cargando tasas desde API directa:', e);
+        }
+    }
+
+    if (datos && Array.isArray(datos) && datos.length > 0) {
         TASAS_MANUALES = datos.map(item => ({
             origen: item.Origen ? item.Origen.toString().trim() : '',
             destino: item.Destino ? item.Destino.toString().trim() : '',
             tasa: item.Tasa ? parseFloat(item.Tasa.toString().replace(',', '.')) : 0,
             monedaMult: item.MonedaMult ? item.MonedaMult.toString().trim() : '',
             monedaDiv: item.MonedaDiv ? item.MonedaDiv.toString().trim() : ''
-        }));
+        })).filter(t => t.origen && t.destino);
 
         calcular();
         generarTarifario();
-    } catch (error) {
-        console.error('Error al cargar las tasas:', error);
-        tasaInfo.innerHTML = '⚠️ Error al cargar las tasas desde Google Sheets';
+    } else {
+        tasaInfo.innerHTML = '⚠️ Error al cargar las tasas. Verifica los permisos de tu Google Sheet.';
     }
 }
 
@@ -133,7 +173,6 @@ function calcular() {
                 montoOrigenNecesario = bsRequeridos * tasaCruzada;
             }
 
-            // Aplicar redondeo en Soles si el origen es Perú
             if (origen === 'Perú') {
                 montoOrigenNecesario = redondearSoles(montoOrigenNecesario);
             }
@@ -152,7 +191,6 @@ function calcular() {
                 montoDestinoRecibido = bsRequeridos / tasaCruzada;
             }
 
-            // Aplicar redondeo en Soles si el destino es Perú
             if (destino === 'Perú') {
                 montoDestinoRecibido = redondearSoles(montoDestinoRecibido);
             }
@@ -171,7 +209,6 @@ function calcular() {
             document.getElementById('lblResultadoTitle').textContent = 'Resultado (Monto ÷ Tasa)';
         }
 
-        // Aplicar redondeo especial si la moneda del resultado es Soles (S/ / Soles / Perú)
         if (moneda.includes('S/') || moneda.toLowerCase().includes('sol') || destino === 'Perú') {
             resultado = redondearSoles(resultado);
         }
@@ -238,7 +275,7 @@ function generarTarifario() {
         let htmlRows = '';
 
         montosSoles.forEach(monto => {
-            const recibesBs = monto * tasaPeruVen; // Permanece exacto en Bs
+            const recibesBs = monto * tasaPeruVen;
             const equivUSD = recibesBs / tasaBCV;
             htmlRows += `<tr>
                 <td>${monto} S/</td>
@@ -258,8 +295,7 @@ function generarTarifario() {
         let htmlRows = '';
 
         montosUSD.forEach(monto => {
-            const recibesBs = monto * tasaBCV; // Permanece exacto en Bs
-            // Redondeo especial en Soles aplicado aquí
+            const recibesBs = monto * tasaBCV;
             const equivSoles = redondearSoles(recibesBs / tasaPeruVen);
             
             htmlRows += `<tr>
@@ -305,7 +341,6 @@ function enviarTarifarioWhatsApp() {
         const montosUSD = [10, 20, 30, 50, 100, 150, 200, 250, 300, 500];
         montosUSD.forEach(monto => {
             const recibesBs = monto * tasaBCV;
-            // Redondeo especial en Soles aplicado para el mensaje de WhatsApp
             const equivSoles = redondearSoles(recibesBs / tasaPeruVen);
             mensaje += `${monto}$ | ${recibesBs.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} | ${equivSoles.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} S/\n`;
         });
