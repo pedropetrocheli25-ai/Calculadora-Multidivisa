@@ -236,7 +236,7 @@ function calcular() {
     document.getElementById('resultado').textContent = `${moneda} ${resFormateado}`;
 }
 
-// LÓGICA DEL TARIFARIO DINÁMICO
+// LÓGICA DEL TARIFARIO DINÁMICO CON CUADROS ESTILIZADOS
 function generarTarifario() {
     const tipo = document.getElementById('tipoTarifario').value;
     const contenedor = document.getElementById('contenedorTarifario');
@@ -263,9 +263,22 @@ function generarTarifario() {
 
     contenedor.style.display = 'block';
 
+    // HTML de los cuadros de tasas compartidos para ambos tarifarios
+    const htmlCuadrosTasas = `
+        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 12px; margin-bottom: 5px;">
+            <div style="background-color: #1b3b22; border: 1.5px solid #2ecc71; border-radius: 8px; padding: 8px 12px; text-align: center; flex: 1;">
+                <div style="font-size: 11px; color: #a3e4d7; font-weight: bold; margin-bottom: 2px;">Tasa BCV</div>
+                <div style="font-size: 14px; color: #2ecc71; font-weight: bold;">${tasaBCV.toFixed(2)} Bs</div>
+            </div>
+            <div style="background-color: #1a2938; border: 1.5px solid #3498db; border-radius: 8px; padding: 8px 12px; text-align: center; flex: 1;">
+                <div style="font-size: 11px; color: #a9cce3; font-weight: bold; margin-bottom: 2px;">Tasa PE-VE</div>
+                <div style="font-size: 14px; color: #3498db; font-weight: bold;">${tasaPeruVen.toLocaleString('es-ES')}</div>
+            </div>
+        </div>
+    `;
+
     if (tipo === 'soles') {
-        header.innerHTML = `📋 <strong>TARIFARIO EN SOLES A BOLÍVARES</strong><br>` +
-                           `<small>🕐 Tasa BCV: ${tasaBCV.toFixed(2)} Bs | Perú - Ven Configurada: ${tasaPeruVen.toLocaleString('es-ES')}</small>`;
+        header.innerHTML = `📋 <strong>TARIFARIO SOLES</strong>` + htmlCuadrosTasas;
 
         thead.innerHTML = `<tr><th>Enviado</th><th>Recibes (Bs)</th><th>Equivalente</th></tr>`;
 
@@ -284,12 +297,12 @@ function generarTarifario() {
         tbody.innerHTML = htmlRows;
 
     } else if (tipo === 'usd') {
-        header.innerHTML = `📋 <strong>TARIFARIO EN USD</strong><br>` +
-                           `<small>🕐 Tasa BCV: ${tasaBCV.toFixed(2)} Bs | Perú - Ven Configurada: ${tasaPeruVen.toLocaleString('es-ES')}</small>`;
+        header.innerHTML = `📋 <strong>TARIFARIO EN USD</strong>` + htmlCuadrosTasas;
 
         thead.innerHTML = `<tr><th>Dólares</th><th>Recibes (Bs)</th><th>Equivalente</th></tr>`;
 
-        const montosUSD = [10, 20, 30, 50, 100, 150, 200, 250, 300, 500];
+        // Secuencia solicitada comenzando desde 5$
+        const montosUSD = [5, 10, 20, 50, 100, 150, 200, 500];
         let htmlRows = '';
 
         montosUSD.forEach(monto => {
@@ -318,8 +331,8 @@ function enviarTarifarioWhatsApp() {
     let mensaje = '';
 
     if (tipo === 'soles') {
-        mensaje += `📋 *TARIFARIO EN SOLES A BOLÍVARES*\n`;
-        mensaje += `🕐 Tasa BCV: ${tasaBCV.toFixed(2)} Bs | Perú - Ven Configurada: ${tasaPeruVen.toLocaleString('es-ES')}\n\n`;
+        mensaje += `📋 *TARIFARIO SOLES*\n`;
+        mensaje += `🟢 Tasa BCV: ${tasaBCV.toFixed(2)} Bs | 🔵 Tasa PE-VE: ${tasaPeruVen.toLocaleString('es-ES')}\n\n`;
         mensaje += `Enviado | Recibes (Bs) | Equivalente\n`;
         mensaje += `---------------------------------\n`;
 
@@ -332,11 +345,11 @@ function enviarTarifarioWhatsApp() {
 
     } else if (tipo === 'usd') {
         mensaje += `📋 *TARIFARIO EN USD*\n`;
-        mensaje += `🕐 Tasa BCV: ${tasaBCV.toFixed(2)} Bs | Perú - Ven Configurada: ${tasaPeruVen.toLocaleString('es-ES')}\n\n`;
+        mensaje += `🟢 Tasa BCV: ${tasaBCV.toFixed(2)} Bs | 🔵 Tasa PE-VE: ${tasaPeruVen.toLocaleString('es-ES')}\n\n`;
         mensaje += `Dólares | Recibes (Bs) | Equivalente\n`;
         mensaje += `---------------------------------\n`;
 
-        const montosUSD = [10, 20, 30, 50, 100, 150, 200, 250, 300, 500];
+        const montosUSD = [5, 10, 20, 50, 100, 150, 200, 500];
         montosUSD.forEach(monto => {
             const recibesBs = monto * tasaBCV;
             const equivSoles = redondearSoles(recibesBs / tasaPeruVen);
@@ -378,14 +391,13 @@ function enviarWhatsApp() {
     window.open(url, '_blank');
 }
 
-// COPIAR RECIBO DE TRANSACCIÓN EN USD / BCV (CORREGIDO)
+// COPIAR RECIBO DE TRANSACCIÓN EN USD / BCV
 async function copiarReciboTransaccion() {
     const origen = document.getElementById('origen').value;
     const destino = document.getElementById('destino').value;
     const montoInput = document.getElementById('monto').value;
     const resultadoText = document.getElementById('resultado').textContent.trim(); 
     
-    // Tomamos la tasa BCV directamente de la variable global numérica (sin errores de texto)
     const tasaBcvNumerica = TASAS_BCV.USD || 0;
 
     const bsNumerico = parseFloat(
@@ -409,7 +421,7 @@ async function copiarReciboTransaccion() {
     let monedaOrigenSimbolo = origen === 'Perú' ? 'S/' : (origen === 'Venezuela' ? 'Bs' : '$');
 
     const recibo = `━━━━━━━━━━━━━━━━━━
-✅TRANSACCIÓN REALIZADA
+✅ TRANSACCIÓN REALIZADA
 ━━━━━━━━━━━━━━━━━━
 
 📤 MONTO ENVIADO (${origen}):
@@ -425,7 +437,7 @@ async function copiarReciboTransaccion() {
    ${tasaTexto}
 
 ━━━━━━━━━━━━━━━━━━
-📱Gracias por preferirnos💞
+📱 Gracias por preferirnos. 💞
 ━━━━━━━━━━━━━━━━━━`;
 
     try {
