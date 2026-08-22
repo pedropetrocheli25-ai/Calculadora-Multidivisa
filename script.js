@@ -378,17 +378,18 @@ function enviarWhatsApp() {
     window.open(url, '_blank');
 }
 
-// COPIAR RECIBO DE TRANSACCIÓN EN USD / BCV
+// COPIAR RECIBO DE TRANSACCIÓN EN USD / BCV (CORREGIDO)
 async function copiarReciboTransaccion() {
+    const origen = document.getElementById('origen').value;
+    const destino = document.getElementById('destino').value;
+    const montoInput = document.getElementById('monto').value;
     const resultadoText = document.getElementById('resultado').textContent.trim(); 
-    const bcvUsdText = document.getElementById('bcvUsd').textContent.trim(); 
+    
+    // Tomamos la tasa BCV directamente de la variable global numérica (sin errores de texto)
+    const tasaBcvNumerica = TASAS_BCV.USD || 0;
 
     const bsNumerico = parseFloat(
         resultadoText.replace(/[^\d.,]/g, '').replace(/\./g, '').replace(',', '.')
-    ) || 0;
-
-    const tasaBcvNumerica = parseFloat(
-        bcvUsdText.replace(/[^\d.,]/g, '').replace(/\./g, '').replace(',', '.')
     ) || 0;
 
     let montoUSDTexto = "$0.00 USD";
@@ -403,19 +404,24 @@ async function copiarReciboTransaccion() {
 
     const tasaTexto = tasaBcvNumerica > 0 
         ? `Bs ${tasaBcvNumerica.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (BCV $)`
-        : `${bcvUsdText} (BCV $)`;
+        : document.getElementById('bcvUsd').textContent.trim();
+
+    let monedaOrigenSimbolo = origen === 'Perú' ? 'S/' : (origen === 'Venezuela' ? 'Bs' : '$');
 
     const recibo = `━━━━━━━━━━━━━━━━━━
 ✅ TRANSACCIÓN REALIZADA
 ━━━━━━━━━━━━━━━━━━
 
-💰 MONTO ENTREGADO:
+📤 MONTO ENVIADO (${origen}):
+   ${montoInput} ${monedaOrigenSimbolo}
+
+📥 MONTO A RECIBIR (${destino}):
    ${resultadoText}
 
-💵 MONTO RECIBIDO:
+💵 EQUIVALENTE BCV:
    ${montoUSDTexto}
 
-📊 Tasa de Cambio Aplicada:
+📊 Tasa BCV Aplicada:
    ${tasaTexto}
 
 ━━━━━━━━━━━━━━━━━━
@@ -547,7 +553,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btnWhatsapp').addEventListener('click', enviarWhatsApp);
     document.getElementById('btnWhatsappTarifario').addEventListener('click', enviarTarifarioWhatsApp);
     
-    // Eventos agregados para Recibo e Imagen
     document.getElementById('btnCopiarTransaccion').addEventListener('click', copiarReciboTransaccion);
     document.getElementById('btnImagenTarifario').addEventListener('click', guardarTarifarioImagen);
 
