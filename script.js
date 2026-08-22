@@ -409,7 +409,7 @@ async function copiarReciboTransaccion() {
     let monedaOrigenSimbolo = origen === 'Perú' ? 'S/' : (origen === 'Venezuela' ? 'Bs' : '$');
 
     const recibo = `━━━━━━━━━━━━━━━━━━
-✅ TRANSACCIÓN REALIZADA
+✅TRANSACCIÓN REALIZADA
 ━━━━━━━━━━━━━━━━━━
 
 📤 MONTO ENVIADO (${origen}):
@@ -425,7 +425,7 @@ async function copiarReciboTransaccion() {
    ${tasaTexto}
 
 ━━━━━━━━━━━━━━━━━━
-📱 Gracias por preferirnos. 💞
+📱Gracias por preferirnos💞
 ━━━━━━━━━━━━━━━━━━`;
 
     try {
