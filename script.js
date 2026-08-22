@@ -8,7 +8,7 @@ let TASAS_BCV = { USD: 0, EUR: 0 };
 // FUNCIÓN DE REDONDEO ESPECIAL PARA SOLES (S/)
 function redondearSoles(valor) {
     if (valor <= 0) return 0;
-    
+
     const entero = Math.floor(valor);
     const fraccion = Math.round((valor - entero) * 100) / 100;
 
@@ -82,7 +82,6 @@ async function obtenerTasas() {
 
     let datos = null;
 
-    // Intento 1: Servidor OpenSheet
     try {
         const respuesta = await fetch(API_URL_PRIMARY);
         if (respuesta.ok) {
@@ -92,7 +91,6 @@ async function obtenerTasas() {
         console.warn('OpenSheet no respondió, intentando conexión directa con Google...', e);
     }
 
-    // Intento 2: Conexión directa con API de Google (Fallback)
     if (!datos || !Array.isArray(datos) || datos.length === 0) {
         try {
             datos = await obtenerTasasDesdeGoogleDirecto();
@@ -124,7 +122,7 @@ function calcular() {
     const destino = document.getElementById('destino').value;
     const montoInput = parseFloat(document.getElementById('monto').value) || 0;
     const operacion = document.getElementById('operacion').value;
-    
+
     const bcvSection = document.getElementById('bcvSection');
     const bcvEquivalencia = document.getElementById('bcvEquivalencia');
     const esVenezuelaInvolucrado = (origen === 'Venezuela' || destino === 'Venezuela');
@@ -268,9 +266,9 @@ function generarTarifario() {
     if (tipo === 'soles') {
         header.innerHTML = `📋 <strong>TARIFARIO EN SOLES A BOLÍVARES</strong><br>` +
                            `<small>🕐 Tasa BCV: ${tasaBCV.toFixed(2)} Bs | Perú - Ven Configurada: ${tasaPeruVen.toLocaleString('es-ES')}</small>`;
-        
+
         thead.innerHTML = `<tr><th>Enviado</th><th>Recibes (Bs)</th><th>Equivalente</th></tr>`;
-        
+
         const montosSoles = [10, 20, 30, 50, 100, 150, 200, 300, 500, 1000];
         let htmlRows = '';
 
@@ -297,7 +295,7 @@ function generarTarifario() {
         montosUSD.forEach(monto => {
             const recibesBs = monto * tasaBCV;
             const equivSoles = redondearSoles(recibesBs / tasaPeruVen);
-            
+
             htmlRows += `<tr>
                 <td>${monto}$</td>
                 <td>${recibesBs.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
@@ -380,6 +378,127 @@ function enviarWhatsApp() {
     window.open(url, '_blank');
 }
 
+// COPIAR RECIBO DE TRANSACCIÓN EN USD / BCV
+async function copiarReciboTransaccion() {
+    const resultadoText = document.getElementById('resultado').textContent.trim(); 
+    const bcvUsdText = document.getElementById('bcvUsd').textContent.trim(); 
+
+    const bsNumerico = parseFloat(
+        resultadoText.replace(/[^\d.,]/g, '').replace(/\./g, '').replace(',', '.')
+    ) || 0;
+
+    const tasaBcvNumerica = parseFloat(
+        bcvUsdText.replace(/[^\d.,]/g, '').replace(/\./g, '').replace(',', '.')
+    ) || 0;
+
+    let montoUSDTexto = "$0.00 USD";
+    const montoBCVDeseadoVal = parseFloat(document.getElementById('montoBCVDeseado').value);
+    
+    if (!isNaN(montoBCVDeseadoVal) && montoBCVDeseadoVal > 0) {
+        montoUSDTexto = `$${montoBCVDeseadoVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+    } else if (tasaBcvNumerica > 0 && bsNumerico > 0) {
+        const usdCalculado = bsNumerico / tasaBcvNumerica;
+        montoUSDTexto = `$${usdCalculado.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+    }
+
+    const tasaTexto = tasaBcvNumerica > 0 
+        ? `Bs ${tasaBcvNumerica.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (BCV $)`
+        : `${bcvUsdText} (BCV $)`;
+
+    const recibo = `━━━━━━━━━━━━━━━━━━
+✅ TRANSACCIÓN REALIZADA
+━━━━━━━━━━━━━━━━━━
+
+💰 MONTO ENTREGADO:
+   ${resultadoText}
+
+💵 MONTO RECIBIDO:
+   ${montoUSDTexto}
+
+📊 Tasa de Cambio Aplicada:
+   ${tasaTexto}
+
+━━━━━━━━━━━━━━━━━━
+📱 Gracias por preferirnos. 💞
+━━━━━━━━━━━━━━━━━━`;
+
+    try {
+        await navigator.clipboard.writeText(recibo);
+        
+        const btn = document.getElementById('btnCopiarTransaccion');
+        const textoOriginal = btn.textContent;
+        btn.textContent = '✅ ¡Recibo Copiado!';
+        btn.style.backgroundColor = '#25D366';
+        btn.style.color = '#fff';
+
+        setTimeout(() => {
+            btn.textContent = textoOriginal;
+            btn.style.backgroundColor = '';
+            btn.style.color = '';
+        }, 2500);
+
+    } catch (err) {
+        console.error('Error al copiar recibo:', err);
+        alert('No se pudo copiar automáticamente. Inténtalo nuevamente.');
+    }
+}
+
+// GENERAR Y GUARDAR/COMPARTIR EL TARIFARIO COMO IMAGEN
+async function guardarTarifarioImagen() {
+    const contenedor = document.getElementById('contenedorTarifario');
+    const btn = document.getElementById('btnImagenTarifario');
+    
+    if (!contenedor || contenedor.style.display === 'none') return;
+
+    const textoOriginal = btn.textContent;
+    btn.textContent = '⏳ Generando imagen...';
+
+    try {
+        const btnWa = document.getElementById('btnWhatsappTarifario');
+        btnWa.style.display = 'none';
+        btn.style.display = 'none';
+
+        const canvas = await html2canvas(contenedor, {
+            scale: 2,
+            backgroundColor: '#1e1e1e',
+            useCORS: true
+        });
+
+        btnWa.style.display = 'block';
+        btn.style.display = 'block';
+
+        canvas.toBlob(async (blob) => {
+            if (!blob) {
+                btn.textContent = textoOriginal;
+                return;
+            }
+
+            const tipo = document.getElementById('tipoTarifario').value;
+            const nombreArchivo = `Tarifario_${tipo.toUpperCase()}.png`;
+
+            if (navigator.canShare && navigator.canShare({ files: [new File([blob], nombreArchivo, { type: 'image/png' })] })) {
+                const file = new File([blob], nombreArchivo, { type: 'image/png' });
+                await navigator.share({
+                    title: 'Tarifario de Remesas',
+                    files: [file]
+                });
+            } else {
+                const link = document.createElement('a');
+                link.download = nombreArchivo;
+                link.href = URL.createObjectURL(blob);
+                link.click();
+            }
+
+            btn.textContent = textoOriginal;
+        }, 'image/png');
+
+    } catch (e) {
+        console.error('Error al generar la imagen:', e);
+        alert('Ocurrió un error al convertir el tarifario a imagen.');
+        btn.textContent = textoOriginal;
+    }
+}
+
 function intercambiarPaises() {
     const origen = document.getElementById('origen');
     const destino = document.getElementById('destino');
@@ -427,6 +546,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('verTasasBtn').addEventListener('click', toggleTabla);
     document.getElementById('btnWhatsapp').addEventListener('click', enviarWhatsApp);
     document.getElementById('btnWhatsappTarifario').addEventListener('click', enviarTarifarioWhatsApp);
+    
+    // Eventos agregados para Recibo e Imagen
+    document.getElementById('btnCopiarTransaccion').addEventListener('click', copiarReciboTransaccion);
+    document.getElementById('btnImagenTarifario').addEventListener('click', guardarTarifarioImagen);
 
     obtenerTasas();
 });
