@@ -263,7 +263,6 @@ function generarTarifario() {
 
     contenedor.style.display = 'block';
 
-    // HTML de los cuadros de tasas compartidos para ambos tarifarios
     const htmlCuadrosTasas = `
         <div style="display: flex; gap: 10px; justify-content: center; margin-top: 12px; margin-bottom: 5px;">
             <div style="background-color: #1b3b22; border: 1.5px solid #2ecc71; border-radius: 8px; padding: 8px 12px; text-align: center; flex: 1;">
@@ -279,7 +278,6 @@ function generarTarifario() {
 
     if (tipo === 'soles') {
         header.innerHTML = `📋 <strong>TARIFARIO SOLES</strong>` + htmlCuadrosTasas;
-
         thead.innerHTML = `<tr><th>Enviado</th><th>Recibes (Bs)</th><th>Equivalente</th></tr>`;
 
         const montosSoles = [10, 20, 30, 50, 100, 150, 200, 300, 500, 1000];
@@ -298,10 +296,8 @@ function generarTarifario() {
 
     } else if (tipo === 'usd') {
         header.innerHTML = `📋 <strong>TARIFARIO EN USD</strong>` + htmlCuadrosTasas;
-
         thead.innerHTML = `<tr><th>Dólares</th><th>Recibes (Bs)</th><th>Equivalente</th></tr>`;
 
-        // Secuencia solicitada comenzando desde 5$
         const montosUSD = [5, 10, 20, 50, 100, 150, 200, 500];
         let htmlRows = '';
 
@@ -364,7 +360,8 @@ function enviarTarifarioWhatsApp() {
     window.open(url, '_blank');
 }
 
-function enviarWhatsApp() {
+// FUNCIÓN ÚNICA PARA ARMAR EL TEXTO DE COTIZACIÓN
+function obtenerTextoCotizacion() {
     const origen = document.getElementById('origen').value;
     const destino = document.getElementById('destino').value;
     const monto = document.getElementById('monto').value;
@@ -387,65 +384,26 @@ function enviarWhatsApp() {
     mensaje += `-----------------------------------\n`;
     mensaje += `📱 _Enviado desde Calculadora Multidivisa_`;
 
+    return mensaje;
+}
+
+// COMPARTIR COTIZACIÓN POR WHATSAPP
+function enviarWhatsApp() {
+    const mensaje = obtenerTextoCotizacion();
     const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
     window.open(url, '_blank');
 }
 
-// COPIAR RECIBO DE TRANSACCIÓN EN USD / BCV
+// COPIAR COTIZACIÓN AL PORTAPAPELES (MISMO TEXTO DE WHATSAPP)
 async function copiarReciboTransaccion() {
-    const origen = document.getElementById('origen').value;
-    const destino = document.getElementById('destino').value;
-    const montoInput = document.getElementById('monto').value;
-    const resultadoText = document.getElementById('resultado').textContent.trim(); 
-    
-    const tasaBcvNumerica = TASAS_BCV.USD || 0;
-
-    const bsNumerico = parseFloat(
-        resultadoText.replace(/[^\d.,]/g, '').replace(/\./g, '').replace(',', '.')
-    ) || 0;
-
-    let montoUSDTexto = "$0.00 USD";
-    const montoBCVDeseadoVal = parseFloat(document.getElementById('montoBCVDeseado').value);
-    
-    if (!isNaN(montoBCVDeseadoVal) && montoBCVDeseadoVal > 0) {
-        montoUSDTexto = `$${montoBCVDeseadoVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
-    } else if (tasaBcvNumerica > 0 && bsNumerico > 0) {
-        const usdCalculado = bsNumerico / tasaBcvNumerica;
-        montoUSDTexto = `$${usdCalculado.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
-    }
-
-    const tasaTexto = tasaBcvNumerica > 0 
-        ? `Bs ${tasaBcvNumerica.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (BCV $)`
-        : document.getElementById('bcvUsd').textContent.trim();
-
-    let monedaOrigenSimbolo = origen === 'Perú' ? 'S/' : (origen === 'Venezuela' ? 'Bs' : '$');
-
-    const recibo = `━━━━━━━━━━━━━━━━━━
-✅ TRANSACCIÓN REALIZADA
-━━━━━━━━━━━━━━━━━━
-
-📤 MONTO ENVIADO (${origen}):
-   ${montoInput} ${monedaOrigenSimbolo}
-
-📥 MONTO A RECIBIR (${destino}):
-   ${resultadoText}
-
-💵 EQUIVALENTE BCV:
-   ${montoUSDTexto}
-
-📊 Tasa BCV Aplicada:
-   ${tasaTexto}
-
-━━━━━━━━━━━━━━━━━━
-📱 Gracias por preferirnos. 💞
-━━━━━━━━━━━━━━━━━━`;
+    const mensaje = obtenerTextoCotizacion();
 
     try {
-        await navigator.clipboard.writeText(recibo);
-        
+        await navigator.clipboard.writeText(mensaje);
+
         const btn = document.getElementById('btnCopiarTransaccion');
         const textoOriginal = btn.textContent;
-        btn.textContent = '✅ ¡Recibo Copiado!';
+        btn.textContent = '✅ ¡Cálculo Copiado!';
         btn.style.backgroundColor = '#25D366';
         btn.style.color = '#fff';
 
@@ -456,7 +414,7 @@ async function copiarReciboTransaccion() {
         }, 2500);
 
     } catch (err) {
-        console.error('Error al copiar recibo:', err);
+        console.error('Error al copiar cálculo:', err);
         alert('No se pudo copiar automáticamente. Inténtalo nuevamente.');
     }
 }
@@ -465,7 +423,7 @@ async function copiarReciboTransaccion() {
 async function guardarTarifarioImagen() {
     const contenedor = document.getElementById('contenedorTarifario');
     const btn = document.getElementById('btnImagenTarifario');
-    
+
     if (!contenedor || contenedor.style.display === 'none') return;
 
     const textoOriginal = btn.textContent;
@@ -564,7 +522,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('verTasasBtn').addEventListener('click', toggleTabla);
     document.getElementById('btnWhatsapp').addEventListener('click', enviarWhatsApp);
     document.getElementById('btnWhatsappTarifario').addEventListener('click', enviarTarifarioWhatsApp);
-    
+
     document.getElementById('btnCopiarTransaccion').addEventListener('click', copiarReciboTransaccion);
     document.getElementById('btnImagenTarifario').addEventListener('click', guardarTarifarioImagen);
 
