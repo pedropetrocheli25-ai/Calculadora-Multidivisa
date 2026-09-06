@@ -5,20 +5,13 @@ const API_URL_FALLBACK = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gvi
 let TASAS_MANUALES = [];
 let TASAS_BCV = { USD: 0, EUR: 0 };
 
-// FUNCIÓN DE REDONDEO ESPECIAL PARA SOLES (S/)
-function redondearSoles(valor) {
-    if (valor <= 0) return 0;
-
-    const entero = Math.floor(valor);
-    const fraccion = Math.round((valor - entero) * 100) / 100;
-
-    if (fraccion === 0) {
-        return entero;
-    } else if (fraccion <= 0.50) {
-        return entero + 0.50;
-    } else {
-        return entero + 1.00;
-    }
+// FUNCIÓN DE REDONDEO A TU FAVOR (Al siguiente 0.10)
+// Ejemplos: 91.24 -> 91.30 | 91.41 -> 91.50 | 96.78 -> 96.80
+function redondearAFavor(valor) {
+    if (!valor || isNaN(valor) || valor === 0) return 0;
+    // Se ajusta la precisión para evitar fallos de decimales flotantes en JS
+    const valorAjustado = Math.round(valor * 10000) / 10000;
+    return Math.ceil(valorAjustado * 10) / 10;
 }
 
 async function obtenerBCV() {
@@ -157,7 +150,7 @@ function calcular() {
     let moneda = '';
 
     if (esVenezuelaInvolucrado && montoBCVDeseado > 0 && tasaBCV > 0) {
-        const bsRequeridos = montoBCVDeseado * tasaBCV;
+        const bsRequeridos = redondearAFavor(montoBCVDeseado * tasaBCV);
 
         if (destino === 'Venezuela') {
             resultado = bsRequeridos;
@@ -170,10 +163,7 @@ function calcular() {
             } else {
                 montoOrigenNecesario = bsRequeridos * tasaCruzada;
             }
-
-            if (origen === 'Perú') {
-                montoOrigenNecesario = redondearSoles(montoOrigenNecesario);
-            }
+            montoOrigenNecesario = redondearAFavor(montoOrigenNecesario);
 
             bcvEquivalencia.style.display = 'block';
             bcvEquivalencia.innerHTML = `💵 Para recibir <strong>$${montoBCVDeseado} ${monedaBCV}</strong> en Venezuela (Tasa BCV: ${tasaBCV.toFixed(2)} Bs), la persona debe enviar: <strong>${montoOrigenNecesario.toFixed(2)} ${origen === 'Perú' ? 'S/' : 'en moneda de ' + origen}</strong>.`;
@@ -188,10 +178,7 @@ function calcular() {
             } else {
                 montoDestinoRecibido = bsRequeridos / tasaCruzada;
             }
-
-            if (destino === 'Perú') {
-                montoDestinoRecibido = redondearSoles(montoDestinoRecibido);
-            }
+            montoDestinoRecibido = redondearAFavor(montoDestinoRecibido);
 
             bcvEquivalencia.style.display = 'block';
             bcvEquivalencia.innerHTML = `💵 $${montoBCVDeseado} ${monedaBCV} equivalen a <strong>${bsRequeridos.toFixed(2)} Bs</strong>. Al cambiarlos a ${destino}, recibirás: <strong>${montoDestinoRecibido.toFixed(2)} ${destino === 'Perú' ? 'S/' : 'en moneda de ' + destino}</strong>.`;
@@ -207,18 +194,17 @@ function calcular() {
             document.getElementById('lblResultadoTitle').textContent = 'Resultado (Monto ÷ Tasa)';
         }
 
-        if (moneda.includes('S/') || moneda.toLowerCase().includes('sol') || destino === 'Perú') {
-            resultado = redondearSoles(resultado);
-        }
+        // Aplica el redondeo a favor en el resultado general
+        resultado = redondearAFavor(resultado);
 
         if (esVenezuelaInvolucrado && tasaBCV > 0) {
             bcvEquivalencia.style.display = 'block';
 
             if (moneda === 'Bs') {
-                const equivalenciaUSD = resultado / tasaBCV;
+                const equivalenciaUSD = redondearAFavor(resultado / tasaBCV);
                 bcvEquivalencia.innerHTML = `🏛️ Equivalente BCV: <strong>$${equivalenciaUSD.toFixed(2)} ${monedaBCV}</strong> (Tasa: ${tasaBCV.toFixed(2)} Bs)`;
             } else if (origen === 'Venezuela') {
-                const equivalenciaUSD = montoInput / tasaBCV;
+                const equivalenciaUSD = redondearAFavor(montoInput / tasaBCV);
                 bcvEquivalencia.innerHTML = `🏛️ Los ${montoInput} Bs enviados equivalen a <strong>$${equivalenciaUSD.toFixed(2)} ${monedaBCV}</strong> según tasa oficial BCV (${tasaBCV.toFixed(2)} Bs).`;
             } else {
                 bcvEquivalencia.style.display = 'none';
@@ -236,7 +222,7 @@ function calcular() {
     document.getElementById('resultado').textContent = `${moneda} ${resFormateado}`;
 }
 
-// LÓGICA DEL TARIFARIO DINÁMICO CON CUADROS ESTILIZADOS
+// LÓGICA DEL TARIFARIO DINÁMICO
 function generarTarifario() {
     const tipo = document.getElementById('tipoTarifario').value;
     const contenedor = document.getElementById('contenedorTarifario');
@@ -284,8 +270,8 @@ function generarTarifario() {
         let htmlRows = '';
 
         montosSoles.forEach(monto => {
-            const recibesBs = monto * tasaPeruVen;
-            const equivUSD = recibesBs / tasaBCV;
+            const recibesBs = redondearAFavor(monto * tasaPeruVen);
+            const equivUSD = redondearAFavor(recibesBs / tasaBCV);
             htmlRows += `<tr>
                 <td>${monto} S/</td>
                 <td>${recibesBs.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
@@ -302,8 +288,8 @@ function generarTarifario() {
         let htmlRows = '';
 
         montosUSD.forEach(monto => {
-            const recibesBs = monto * tasaBCV;
-            const equivSoles = redondearSoles(recibesBs / tasaPeruVen);
+            const recibesBs = redondearAFavor(monto * tasaBCV);
+            const equivSoles = redondearAFavor(recibesBs / tasaPeruVen);
 
             htmlRows += `<tr>
                 <td>${monto}$</td>
@@ -334,8 +320,8 @@ function enviarTarifarioWhatsApp() {
 
         const montosSoles = [10, 20, 30, 50, 100, 150, 200, 300, 500, 1000];
         montosSoles.forEach(monto => {
-            const recibesBs = monto * tasaPeruVen;
-            const equivUSD = recibesBs / tasaBCV;
+            const recibesBs = redondearAFavor(monto * tasaPeruVen);
+            const equivUSD = redondearAFavor(recibesBs / tasaBCV);
             mensaje += `${monto} S/ | ${recibesBs.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} | ${equivUSD.toFixed(2)}$\n`;
         });
 
@@ -347,8 +333,8 @@ function enviarTarifarioWhatsApp() {
 
         const montosUSD = [5, 10, 20, 50, 100, 150, 200, 500];
         montosUSD.forEach(monto => {
-            const recibesBs = monto * tasaBCV;
-            const equivSoles = redondearSoles(recibesBs / tasaPeruVen);
+            const recibesBs = redondearAFavor(monto * tasaBCV);
+            const equivSoles = redondearAFavor(recibesBs / tasaPeruVen);
             mensaje += `${monto}$ | ${recibesBs.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} | ${equivSoles.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} S/\n`;
         });
     }
@@ -360,7 +346,7 @@ function enviarTarifarioWhatsApp() {
     window.open(url, '_blank');
 }
 
-// FUNCIÓN ÚNICA PARA ARMAR EL TEXTO DE COTIZACIÓN
+// ARMAR TEXTO DE COTIZACIÓN
 function obtenerTextoCotizacion() {
     const origen = document.getElementById('origen').value;
     const destino = document.getElementById('destino').value;
@@ -387,14 +373,14 @@ function obtenerTextoCotizacion() {
     return mensaje;
 }
 
-// COMPARTIR COTIZACIÓN POR WHATSAPP
+// COMPARTIR POR WHATSAPP
 function enviarWhatsApp() {
     const mensaje = obtenerTextoCotizacion();
     const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
     window.open(url, '_blank');
 }
 
-// COPIAR COTIZACIÓN AL PORTAPAPELES (MISMO TEXTO DE WHATSAPP)
+// COPIAR COTIZACIÓN
 async function copiarReciboTransaccion() {
     const mensaje = obtenerTextoCotizacion();
 
