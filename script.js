@@ -6,50 +6,74 @@ let TASAS_MANUALES = [];
 let TASAS_BCV = { USD: 0, EUR: 0 };
 
 // FUNCIÓN DE REDONDEO A TU FAVOR (Al siguiente 0.10)
-// Ejemplos: 91.24 -> 91.30 | 91.41 -> 91.50 | 96.78 -> 96.80
 function redondearAFavor(valor) {
     if (!valor || isNaN(valor) || valor === 0) return 0;
-    // Se ajusta la precisión para evitar fallos de decimales flotantes en JS
     const valorAjustado = Math.round(valor * 10000) / 10000;
     return Math.ceil(valorAjustado * 10) / 10;
 }
 
+// OBTENER TASAS BCV EN TIEMPO REAL (Con bypass de caché)
 async function obtenerBCV() {
-    try {
-        const [resUSD, resEUR] = await Promise.all([
-            fetch('https://ve.dolarapi.com/v1/dolares/oficial').then(r => r.json()),
-            fetch('https://ve.dolarapi.com/v1/euros/oficial').then(r => r.json())
-        ]);
+    const timestamp = Date.now();
+    let usd = 0;
+    let eur = 0;
 
-        TASAS_BCV.USD = resUSD.promedio || resUSD.monto || 0;
-        TASAS_BCV.EUR = resEUR.promedio || resEUR.monto || 0;
+    // 1. Intento primario con PyDolarVenezuela (Refresca al instante cuando el BCV publica a las 4-5 PM)
+    try {
+        const res = await fetch(`https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=bcv&_t=${timestamp}`, { cache: 'no-store' }).then(r => r.json());
+        if (res && res.monedas) {
+            usd = parseFloat(res.monedas.usd?.promedio || res.monedas.usd?.monto || 0);
+            eur = parseFloat(res.monedas.eur?.promedio || res.monedas.eur?.monto || 0);
+        }
+    } catch (e) {
+        console.warn('PyDolarVenezuela no respondió, intentando DolarApi...', e);
+    }
+
+    // 2. Intento secundario con DolarApi (Respaldo)
+    if (usd === 0 || eur === 0) {
+        try {
+            const [resUSD, resEUR] = await Promise.all([
+                fetch(`https://ve.dolarapi.com/v1/dolares/oficial?_t=${timestamp}`, { cache: 'no-store' }).then(r => r.json()),
+                fetch(`https://ve.dolarapi.com/v1/euros/oficial?_t=${timestamp}`, { cache: 'no-store' }).then(r => r.json())
+            ]);
+            usd = parseFloat(resUSD.promedio || resUSD.monto || 0);
+            eur = parseFloat(resEUR.promedio || resEUR.monto || 0);
+        } catch (e) {
+            console.warn('DolarApi no respondió:', e);
+        }
+    }
+
+    // 3. Intento terciario directo
+    if (usd === 0 || eur === 0) {
+        try {
+            const res = await fetch(`https://bcv-exchange-rates.vercel.app/get_bcv_exchange_rates?_t=${timestamp}`, { cache: 'no-store' }).then(r => r.json());
+            if (res) {
+                usd = parseFloat(res.USD || 0);
+                eur = parseFloat(res.EUR || 0);
+            }
+        } catch (e) {
+            console.error('Error final cargando BCV:', e);
+        }
+    }
+
+    if (usd > 0 && eur > 0) {
+        TASAS_BCV.USD = usd;
+        TASAS_BCV.EUR = eur;
 
         document.getElementById('bcvUsd').textContent = `${TASAS_BCV.USD.toFixed(2)} Bs`;
         document.getElementById('bcvEur').textContent = `${TASAS_BCV.EUR.toFixed(2)} Bs`;
         calcular();
         generarTarifario();
-    } catch (e) {
-        console.error('Error cargando BCV principal:', e);
-        try {
-            const res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=bcv').then(r => r.json());
-            if (res && res.monedas) {
-                TASAS_BCV.USD = res.monedas.usd?.promedio || 0;
-                TASAS_BCV.EUR = res.monedas.eur?.promedio || 0;
-                document.getElementById('bcvUsd').textContent = `${TASAS_BCV.USD.toFixed(2)} Bs`;
-                document.getElementById('bcvEur').textContent = `${TASAS_BCV.EUR.toFixed(2)} Bs`;
-                calcular();
-                generarTarifario();
-            }
-        } catch(err) {
-            document.getElementById('bcvUsd').textContent = 'Error';
-            document.getElementById('bcvEur').textContent = 'Error';
-        }
+    } else {
+        document.getElementById('bcvUsd').textContent = 'Error';
+        document.getElementById('bcvEur').textContent = 'Error';
     }
 }
 
-// Cargar tasas directamente desde Google API (Respaldo oficial)
+// Cargar tasas desde Google API
 async function obtenerTasasDesdeGoogleDirecto() {
-    const res = await fetch(API_URL_FALLBACK);
+    const timestamp = Date.now();
+    const res = await fetch(`${API_URL_FALLBACK}&_t=${timestamp}`, { cache: 'no-store' });
     const text = await res.text();
     const jsonString = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
     const data = JSON.parse(jsonString);
@@ -74,9 +98,10 @@ async function obtenerTasas() {
     tasaInfo.innerHTML = 'Obteniendo tasas...';
 
     let datos = null;
+    const timestamp = Date.now();
 
     try {
-        const respuesta = await fetch(API_URL_PRIMARY);
+        const respuesta = await fetch(`${API_URL_PRIMARY}?_t=${timestamp}`, { cache: 'no-store' });
         if (respuesta.ok) {
             datos = await respuesta.json();
         }
@@ -194,7 +219,6 @@ function calcular() {
             document.getElementById('lblResultadoTitle').textContent = 'Resultado (Monto ÷ Tasa)';
         }
 
-        // Aplica el redondeo a favor en el resultado general
         resultado = redondearAFavor(resultado);
 
         if (esVenezuelaInvolucrado && tasaBCV > 0) {
