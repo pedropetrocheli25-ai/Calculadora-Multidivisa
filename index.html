@@ -175,21 +175,14 @@
 
     <!-- Script de integración con Google Sheets -->
     <script>
-        // PEGA AQUÍ EL LINK QUE COPIASTE DE GOOGLE APPS SCRIPT (el que termina en /exec)
-        const URL_WEB_APP = "PEGA_AQUI_TU_URL_DE_APPS_SCRIPT";
+        const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbz38RwjIQZubHiLh3aPrvBOTjUKxq8nKatNjBg2Xzdf7R0mOKChtDhOXrlbmARSgBf2/exec";
 
         async function registrarOperacion(tipoOperacion) {
-            if (URL_WEB_APP === "PEGA_AQUI_TU_URL_DE_APPS_SCRIPT" || !URL_WEB_APP) {
-                alert("⚠️ Por favor pega la URL de Google Apps Script en la variable URL_WEB_APP dentro de index.html.");
-                return;
-            }
-
             const montoSoles = parseFloat(document.getElementById("monto")?.value) || 0;
             const origen = document.getElementById("origen")?.value || "";
             const destino = document.getElementById("destino")?.value || "";
             const nota = document.getElementById("notaControl")?.value || "";
             
-            // Extraer el texto del resultado o tasa actual
             const resultadoTexto = document.getElementById("resultado")?.innerText || "0";
             const tasaTexto = document.getElementById("tasaInfo")?.innerText || "";
 
@@ -218,9 +211,9 @@
 
                 if (result.status === "success") {
                     alert(`✅ Registro exitoso (${tipoOperacion})\nNuevo Saldo Perú: S/ ${result.nuevoSaldo.toFixed(2)}`);
-                    document.getElementById("notaControl").value = ""; // Limpia el campo nota
+                    document.getElementById("notaControl").value = "";
                 } else {
-                    alert("❌ Error: " + result.message);
+                    alert("❌ Error desde Google Sheets: " + result.message);
                 }
             } catch (error) {
                 console.error("Error al registrar:", error);
