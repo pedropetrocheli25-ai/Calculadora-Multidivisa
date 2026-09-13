@@ -1,236 +1,239 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Calculadora Multidivisa</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculadora y Control de Saldos</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #0f172a; color: #f8fafc; display: flex; justify-content: center; padding: 15px; min-height: 100vh; }
+    .container { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 15px; }
+    
+    /* Tarjeta de Saldo */
+    .card-saldo { background: linear-gradient(135deg, #059669, #10b981); padding: 20px; border-radius: 16px; text-align: center; box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3); }
+    .card-saldo h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9; margin-bottom: 5px; }
+    .card-saldo h2 { font-size: 32px; font-weight: 800; margin: 5px 0; }
+    .btn-refresh { background: rgba(255, 255, 255, 0.2); border: none; color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s; margin-top: 5px; }
+    .btn-refresh:hover { background: rgba(255, 255, 255, 0.3); }
 
-    <!-- Configuración PWA y Móvil -->
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#121212">
+    /* Formulario / Tarjeta Principal */
+    .card-form { background: #1e293b; padding: 20px; border-radius: 16px; border: 1px solid #334155; display: flex; flex-direction: column; gap: 12px; }
+    .input-group { display: flex; flex-direction: column; gap: 5px; }
+    .input-group label { font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; }
+    .input-group input { background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 10px; color: white; font-size: 16px; outline: none; transition: 0.2s; }
+    .input-group input:focus { border-color: #10b981; }
 
-    <!-- Soporte para iOS / Safari -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Remesas Pro">
-    <link rel="apple-touch-icon" href="/icon-192.png">
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-    <link rel="stylesheet" href="style.css">
+    /* Resumen de Cálculos */
+    .resumen { background: #0f172a; padding: 15px; border-radius: 12px; border: 1px dashed #334155; display: flex; flex-direction: column; gap: 8px; margin-top: 5px; }
+    .resumen-row { display: flex; justify-content: space-between; font-size: 14px; color: #cbd5e1; }
+    .resumen-row.destacado { font-size: 17px; font-weight: bold; color: #10b981; border-top: 1px solid #334155; padding-top: 8px; margin-top: 4px; }
+
+    /* Botones de Acción */
+    .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; }
+    .btn-action { border: none; padding: 14px; border-radius: 10px; font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.2s; color: white; }
+    .btn-envio { background: #10b981; }
+    .btn-envio:hover { background: #059669; }
+    .btn-retorno { background: #ec4899; }
+    .btn-retorno:hover { background: #be185d; }
+    .btn-action:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Estado/Avisos */
+    #mensajeEstado { text-align: center; font-size: 13px; font-weight: 500; min-height: 18px; }
+    .exito { color: #10b981; }
+    .error { color: #f43f5e; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Calculadora Multidivisa</h1>
-            <p class="subtitle">Calcula cuánto recibirás o debes enviar entre Perú, Venezuela, Colombia y Brasil</p>
-        </div>
 
-        <div class="card">
-            <div class="form-group">
-                <label>País Origen</label>
-                <select id="origen" class="form-control">
-                    <option value="Perú">Perú</option>
-                    <option value="Venezuela">Venezuela</option>
-                    <option value="Colombia">Colombia</option>
-                    <option value="Brasil">Brasil</option>
-                </select>
-            </div>
-
-            <div class="swap-container">
-                <button id="swapBtn" class="btn-swap" type="button" title="Intercambiar países">⇆</button>
-            </div>
-
-            <div class="form-group">
-                <label>País Destino</label>
-                <select id="destino" class="form-control">
-                    <option value="Venezuela" selected>Venezuela</option>
-                    <option value="Perú">Perú</option>
-                    <option value="Colombia">Colombia</option>
-                    <option value="Brasil">Brasil</option>
-                </select>
-            </div>
-
-            <!-- Sección BCV -->
-            <div id="bcvSection" class="bcv-section" style="display: none;">
-                <div class="bcv-grid">
-                    <div class="bcv-card usd">
-                        <span class="bcv-label">🇺🇸 USD BCV</span>
-                        <span class="bcv-value" id="bcvUsd">Cargando...</span>
-                    </div>
-                    <div class="bcv-card eur">
-                        <span class="bcv-label">🇪🇺 EUR BCV</span>
-                        <span class="bcv-value" id="bcvEur">Cargando...</span>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Moneda BCV para cálculo</label>
-                    <select id="monedaBCV" class="form-control">
-                        <option value="USD">💵 Dólar (USD)</option>
-                        <option value="EUR">💶 Euro (EUR)</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label>🎯 ¿Deseas recibir un monto exacto en USD/EUR? (Opcional)</label>
-                    <input type="number" id="montoBCVDeseado" class="form-control" placeholder="Ej: 10" step="any">
-                </div>
-            </div>
-
-            <div class="form-group" id="montoGroup">
-                <label id="lblMonto">Monto a Enviar / Convertir</label>
-                <input type="number" id="monto" class="form-control" value="100" placeholder="0.00" step="any">
-            </div>
-
-            <div class="form-group">
-                <label>Operación</label>
-                <select id="operacion" class="form-control">
-                    <option value="multiplicar">Multiplicar (Monto × Tasa)</option>
-                    <option value="dividir">Dividir (Monto ÷ Tasa)</option>
-                </select>
-            </div>
-
-            <div class="tasa-info-card" id="tasaInfo">
-                Cargando tasa...
-            </div>
-
-            <div class="result-box">
-                <span class="result-title" id="lblResultadoTitle">Resultado</span>
-                <div class="result-amount" id="resultado">Bs 0,00</div>
-                <div id="bcvEquivalencia" class="bcv-equivalencia" style="display: none;"></div>
-            </div>
-
-            <!-- BOTÓN WHATSAPP CÁLCULO -->
-            <button class="btn-whatsapp" id="btnWhatsapp">📲 Compartir Cálculo por WhatsApp</button>
-
-            <!-- NUEVO BOTÓN: COPIAR RECIBO DE TRANSACCIÓN -->
-            <button class="btn-secondary" id="btnCopiarTransaccion" style="margin-top: 8px; width: 100%;">📋 Copiar Cálculo / Cotización</button>
-
-            <!-- ========================================== -->
-            <!-- CONTROL DE SALDOS Y REGISTRO GOOGLE SHEETS -->
-            <!-- ========================================== -->
-            <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
-                <div class="form-group">
-                    <label>📝 Nota / Nombre del Cliente (Opcional)</label>
-                    <input type="text" id="notaControl" class="form-control" placeholder="Ej: Pago de Cliente Juan">
-                </div>
-                
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <button type="button" onclick="registrarOperacion('ENVIO')" class="btn-secondary" style="flex: 1; background-color: #1b4332; color: #74c69d; border: 1px solid #2d6a4f;">
-                        ➕ Registrar Envío
-                    </button>
-                    <button type="button" onclick="registrarOperacion('RETORNO')" class="btn-secondary" style="flex: 1; background-color: #4a154b; color: #f72585; border: 1px solid #7209b7;">
-                        ➖ Registrar Retorno
-                    </button>
-                </div>
-            </div>
-
-            <!-- NUEVA SECCIÓN: LISTA DESPLEGABLE DE TARIFARIOS -->
-            <div class="form-group" style="margin-top: 20px;">
-                <label>📋 Seleccionar Tarifario Rápido</label>
-                <select id="tipoTarifario" class="form-control">
-                    <option value="ninguno">-- Ver Tarifario --</option>
-                    <option value="soles">📋 Tarifario en Soles (S/)</option>
-                    <option value="usd">📋 Tarifario en USD ($)</option>
-                </select>
-            </div>
-
-            <!-- CONTENEDOR DE TARIFARIOS GENERADOS -->
-            <div id="contenedorTarifario" class="tarifario-card" style="display: none;">
-                <div id="headerTarifario" class="tarifario-header"></div>
-                <div class="table-container">
-                    <table>
-                        <thead id="theadTarifario"></thead>
-                        <tbody id="tbodyTarifario"></tbody>
-                    </table>
-                </div>
-                <button class="btn-whatsapp" id="btnWhatsappTarifario" style="margin-top: 14px;">📲 Compartir Tarifario por WhatsApp</button>
-
-                <!-- NUEVO BOTÓN: GUARDAR COMO IMAGEN -->
-                <button class="btn-secondary" id="btnImagenTarifario" style="margin-top: 8px; width: 100%;">🖼️ Descargar / Guardar como Imagen</button>
-            </div>
-
-            <button class="btn-secondary" id="verTasasBtn" style="margin-top: 12px;">Ver tabla de tasas</button>
-
-            <div id="tablaTasas" class="modal-tasas" style="display: none;">
-                <h3>Tabla de Tasas Cruzadas</h3>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Origen</th>
-                                <th>Destino</th>
-                                <th>Tasa</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tablaTasasContent"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+  <div class="container">
+    
+    <!-- TARJETA DE SALDO DISPONIBLE PERÚ -->
+    <div class="card-saldo">
+      <h3>💰 Saldo Disponible Perú</h3>
+      <h2 id="saldoDisponible">S/ 0.00</h2>
+      <button class="btn-refresh" onclick="cargarSaldo()">🔄 Actualizar Saldo</button>
     </div>
 
-    <!-- Librería para convertir HTML a Imagen -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="script.js"></script>
+    <!-- FORMULARIO DE REGISTRO / CALCULADORA -->
+    <div class="card-form">
+      
+      <div class="input-group">
+        <label>Monto en Soles (S/)</label>
+        <input type="number" id="montoSoles" placeholder="0.00" step="any" oninput="calcular()">
+      </div>
 
-    <!-- Script de integración con Google Sheets -->
-    <script>
-        const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbz38RwjIQZubHiLh3aPrvBOTjUKxq8nKatNjBg2Xzdf7R0mOKChtDhOXrlbmARSgBf2/exec";
+      <div class="input-group">
+        <label>Tasa Venezuela (Bs/S/)</label>
+        <input type="number" id="tasaBs" placeholder="Ej: 271.10" step="any" oninput="calcular()">
+      </div>
 
-        async function registrarOperacion(tipoOperacion) {
-            const montoSoles = parseFloat(document.getElementById("monto")?.value) || 0;
-            const origen = document.getElementById("origen")?.value || "";
-            const destino = document.getElementById("destino")?.value || "";
-            const nota = document.getElementById("notaControl")?.value || "";
-            
-            const resultadoTexto = document.getElementById("resultado")?.innerText || "0";
-            const tasaTexto = document.getElementById("tasaInfo")?.innerText || "";
+      <div class="grid-2">
+        <div class="input-group">
+          <label>Compra USDT (S/)</label>
+          <input type="number" id="compraUsdt" value="3.376" step="any" oninput="calcular()">
+        </div>
+        <div class="input-group">
+          <label>Venta USDT (Bs)</label>
+          <input type="number" id="ventaUsdt" value="957.00" step="any" oninput="calcular()">
+        </div>
+      </div>
 
-            if (montoSoles <= 0) {
-                alert("Por favor ingresa un monto válido.");
-                return;
-            }
+      <div class="input-group">
+        <label>Nota / Cliente (Opcional)</label>
+        <input type="text" id="nota" placeholder="Nombre del cliente o referencia">
+      </div>
 
-            const payload = {
-                tipo: tipoOperacion,
-                montoSoles: montoSoles,
-                montoBs: resultadoTexto,
-                tasa: tasaTexto,
-                ruta: `${origen} -> ${destino}`,
-                nota: nota
-            };
+      <!-- RESUMEN DE CÁLCULO EN TIEMPO REAL -->
+      <div class="resumen">
+        <div class="resumen-row">
+          <span>Recibe Cliente:</span>
+          <strong id="resRecibe">Bs 0.00</strong>
+        </div>
+        <div class="resumen-row">
+          <span>Total Banco (+0.3%):</span>
+          <strong id="resTotalBs">Bs 0.00</strong>
+        </div>
+        <div class="resumen-row destacado">
+          <span>Ganancia ($ USDT):</span>
+          <strong id="resGanancia">$ 0.00</strong>
+        </div>
+      </div>
 
-            try {
-                const response = await fetch(URL_WEB_APP, {
-                    method: "POST",
-                    headers: { "Content-Type": "text/plain;charset=utf-8" },
-                    body: JSON.stringify(payload)
-                });
+      <div id="mensajeEstado"></div>
 
-                const result = await response.json();
+      <!-- BOTONES REGISTRAR -->
+      <div class="btn-group">
+        <button class="btn-action btn-envio" id="btnEnvio" onclick="registrar('ENVIO')">➕ Registrar Envío</button>
+        <button class="btn-action btn-retorno" id="btnRetorno" onclick="registrar('RETORNO')">➖ Registrar Retorno</button>
+      </div>
 
-                if (result.status === "success") {
-                    alert(`✅ Registro exitoso (${tipoOperacion})\nNuevo Saldo Perú: S/ ${result.nuevoSaldo.toFixed(2)}`);
-                    document.getElementById("notaControl").value = "";
-                } else {
-                    alert("❌ Error desde Google Sheets: " + result.message);
-                }
-            } catch (error) {
-                console.error("Error al registrar:", error);
-                alert("Ocurrió un error al enviar los datos a Google Sheets.");
-            }
+    </div>
+
+  </div>
+
+  <script>
+    // =========================================================================
+    // ⚠️ ÚNICA MODIFICACIÓN REQUERIDA:
+    // Pega tu enlace de Google Apps Script entre las dos comillas de abajo:
+    // =========================================================================
+    const URL_APPS_SCRIPT = "TU_URL_DE_APPS_SCRIPT_AQUÍ";
+    // =========================================================================
+
+    // Cargar el saldo automáticamente cuando la página abre
+    document.addEventListener("DOMContentLoaded", () => {
+      cargarSaldo();
+    });
+
+    // Consultar saldo disponible a Google Sheets
+    async function cargarSaldo() {
+      const elSaldo = document.getElementById("saldoDisponible");
+      elSaldo.textContent = "Cargando...";
+
+      if (!URL_APPS_SCRIPT || URL_APPS_SCRIPT.includes("TU_URL_DE_APPS_SCRIPT")) {
+        elSaldo.textContent = "S/ 0.00";
+        mostrarMensaje("Falta pegar tu URL de Apps Script en el código.", "error");
+        return;
+      }
+
+      try {
+        const res = await fetch(URL_APPS_SCRIPT);
+        const data = await res.json();
+        
+        if (data.status === "success") {
+          const saldo = Number(data.saldoActual) || 0;
+          elSaldo.textContent = `S/ ${saldo.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+          mostrarMensaje("", "");
+        } else {
+          elSaldo.textContent = "S/ 0.00";
         }
-    </script>
+      } catch (err) {
+        console.error("Error al cargar saldo:", err);
+        elSaldo.textContent = "S/ 0.00";
+      }
+    }
 
-    <!-- Registro de Service Worker PWA -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('Service Worker PWA registrado con éxito:', reg))
-                    .catch(err => console.error('Error al registrar Service Worker:', err));
-            });
-        }
-    </script>
+    // Calcular montos en vivo en la pantalla
+    function calcular() {
+      const montoSoles = parseFloat(document.getElementById("montoSoles").value) || 0;
+      const tasaBs = parseFloat(document.getElementById("tasaBs").value) || 0;
+      const compra = parseFloat(document.getElementById("compraUsdt").value) || 0;
+      const venta = parseFloat(document.getElementById("ventaUsdt").value) || 0;
+
+      const recibeBs = montoSoles * tasaBs;
+      const totalBs = recibeBs * 1.003; // Incluye el 0.3% bancario
+
+      const cusdt = compra > 0 ? (montoSoles / compra) : 0;
+      const vusdt = venta > 0 ? (totalBs / venta) : 0;
+      const ganancia = cusdt - vusdt;
+
+      document.getElementById("resRecibe").textContent = `Bs ${recibeBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      document.getElementById("resTotalBs").textContent = `Bs ${totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      document.getElementById("resGanancia").textContent = `$ ${ganancia.toFixed(2)}`;
+    }
+
+    // Registrar Envío o Retorno en tu Excel
+    async function registrar(tipo) {
+      const montoSoles = parseFloat(document.getElementById("montoSoles").value) || 0;
+      if (montoSoles <= 0) {
+        mostrarMensaje("Ingresa un monto en Soles mayor a 0", "error");
+        return;
+      }
+
+      if (!URL_APPS_SCRIPT || URL_APPS_SCRIPT.includes("TU_URL_DE_APPS_SCRIPT")) {
+        mostrarMensaje("Configura la URL de Apps Script en el código", "error");
+        return;
+      }
+
+      bloquearBotones(true);
+      mostrarMensaje("Guardando en Google Sheets...", "");
+
+      const payload = {
+        tipo: tipo,
+        montoSoles: montoSoles,
+        tasaBs: parseFloat(document.getElementById("tasaBs").value) || 0,
+        compraUsdt: parseFloat(document.getElementById("compraUsdt").value) || 0,
+        ventaUsdt: parseFloat(document.getElementById("ventaUsdt").value) || 0,
+        nota: document.getElementById("nota").value || ""
+      };
+
+      try {
+        await fetch(URL_APPS_SCRIPT, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify(payload)
+        });
+
+        mostrarMensaje(`¡${tipo} registrado con éxito!`, "exito");
+        document.getElementById("montoSoles").value = "";
+        document.getElementById("nota").value = "";
+        calcular();
+
+        // Actualizar el saldo automáticamente a los 1.5 segundos
+        setTimeout(() => {
+          cargarSaldo();
+        }, 1500);
+
+      } catch (err) {
+        console.error("Error al registrar:", err);
+        mostrarMensaje("Ocurrió un error al guardar", "error");
+      } finally {
+        bloquearBotones(false);
+      }
+    }
+
+    function mostrarMensaje(txt, clase) {
+      const el = document.getElementById("mensajeEstado");
+      el.textContent = txt;
+      el.className = clase;
+    }
+
+    function bloquearBotones(bloquear) {
+      document.getElementById("btnEnvio").disabled = bloquear;
+      document.getElementById("btnRetorno").disabled = bloquear;
+    }
+  </script>
 </body>
 </html>
