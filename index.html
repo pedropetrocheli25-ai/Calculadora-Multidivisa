@@ -101,10 +101,28 @@
 
             <!-- BOTÓN WHATSAPP CÁLCULO -->
             <button class="btn-whatsapp" id="btnWhatsapp">📲 Compartir Cálculo por WhatsApp</button>
-            
+
             <!-- NUEVO BOTÓN: COPIAR RECIBO DE TRANSACCIÓN -->
             <button class="btn-secondary" id="btnCopiarTransaccion" style="margin-top: 8px; width: 100%;">📋 Copiar Cálculo / Cotización</button>
 
+            <!-- ========================================== -->
+            <!-- CONTROL DE SALDOS Y REGISTRO GOOGLE SHEETS -->
+            <!-- ========================================== -->
+            <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <div class="form-group">
+                    <label>📝 Nota / Nombre del Cliente (Opcional)</label>
+                    <input type="text" id="notaControl" class="form-control" placeholder="Ej: Pago de Cliente Juan">
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button type="button" onclick="registrarOperacion('ENVIO')" class="btn-secondary" style="flex: 1; background-color: #1b4332; color: #74c69d; border: 1px solid #2d6a4f;">
+                        ➕ Registrar Envío
+                    </button>
+                    <button type="button" onclick="registrarOperacion('RETORNO')" class="btn-secondary" style="flex: 1; background-color: #4a154b; color: #f72585; border: 1px solid #7209b7;">
+                        ➖ Registrar Retorno
+                    </button>
+                </div>
+            </div>
 
             <!-- NUEVA SECCIÓN: LISTA DESPLEGABLE DE TARIFARIOS -->
             <div class="form-group" style="margin-top: 20px;">
@@ -126,7 +144,7 @@
                     </table>
                 </div>
                 <button class="btn-whatsapp" id="btnWhatsappTarifario" style="margin-top: 14px;">📲 Compartir Tarifario por WhatsApp</button>
-                
+
                 <!-- NUEVO BOTÓN: GUARDAR COMO IMAGEN -->
                 <button class="btn-secondary" id="btnImagenTarifario" style="margin-top: 8px; width: 100%;">🖼️ Descargar / Guardar como Imagen</button>
             </div>
@@ -154,6 +172,62 @@
     <!-- Librería para convertir HTML a Imagen -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="script.js"></script>
+
+    <!-- Script de integración con Google Sheets -->
+    <script>
+        // PEGA AQUÍ EL LINK QUE COPIASTE DE GOOGLE APPS SCRIPT (el que termina en /exec)
+        const URL_WEB_APP = "PEGA_AQUI_TU_URL_DE_APPS_SCRIPT";
+
+        async function registrarOperacion(tipoOperacion) {
+            if (URL_WEB_APP === "PEGA_AQUI_TU_URL_DE_APPS_SCRIPT" || !URL_WEB_APP) {
+                alert("⚠️ Por favor pega la URL de Google Apps Script en la variable URL_WEB_APP dentro de index.html.");
+                return;
+            }
+
+            const montoSoles = parseFloat(document.getElementById("monto")?.value) || 0;
+            const origen = document.getElementById("origen")?.value || "";
+            const destino = document.getElementById("destino")?.value || "";
+            const nota = document.getElementById("notaControl")?.value || "";
+            
+            // Extraer el texto del resultado o tasa actual
+            const resultadoTexto = document.getElementById("resultado")?.innerText || "0";
+            const tasaTexto = document.getElementById("tasaInfo")?.innerText || "";
+
+            if (montoSoles <= 0) {
+                alert("Por favor ingresa un monto válido.");
+                return;
+            }
+
+            const payload = {
+                tipo: tipoOperacion,
+                montoSoles: montoSoles,
+                montoBs: resultadoTexto,
+                tasa: tasaTexto,
+                ruta: `${origen} -> ${destino}`,
+                nota: nota
+            };
+
+            try {
+                const response = await fetch(URL_WEB_APP, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.status === "success") {
+                    alert(`✅ Registro exitoso (${tipoOperacion})\nNuevo Saldo Perú: S/ ${result.nuevoSaldo.toFixed(2)}`);
+                    document.getElementById("notaControl").value = ""; // Limpia el campo nota
+                } else {
+                    alert("❌ Error: " + result.message);
+                }
+            } catch (error) {
+                console.error("Error al registrar:", error);
+                alert("Ocurrió un error al enviar los datos a Google Sheets.");
+            }
+        }
+    </script>
 
     <!-- Registro de Service Worker PWA -->
     <script>
