@@ -283,7 +283,7 @@
             return decimales > 0 ? `${simbolo} ${entero},${decimal}` : `${simbolo} ${entero}`;
         }
 
-        function ejecutarCalculo(desdeMontoDeseado = false) {
+        function ejecutarCalculo() {
             sincronizarGlobales();
             const origen = document.getElementById("origen")?.value || "Perú";
             const destino = document.getElementById("destino")?.value || "Venezuela";
@@ -301,17 +301,6 @@
             let monto = parseFloat(montoInput?.value) || 0;
             let montoBCVDeseado = parseFloat(montoBCVDeseadoInput?.value) || 0;
 
-            // Si el usuario escribe en "Monto Deseado en USD/EUR", calculamos automáticamente cuánto debe enviar en moneda origen
-            if (desdeMontoDeseado && montoBCVDeseado > 0 && tasaBCVActiva > 0 && tasa > 0) {
-                let bsNecesarios = montoBCVDeseado * tasaBCVActiva;
-                if (operacion === "multiplicar") {
-                    monto = bsNecesarios / tasa;
-                } else {
-                    monto = bsNecesarios * tasa;
-                }
-                if (montoInput) montoInput.value = monto.toFixed(2);
-            }
-
             let resultado = (operacion === "dividir") ? (tasa > 0 ? (monto / tasa) : 0) : (monto * tasa);
 
             const resultadoEl = document.getElementById("resultado");
@@ -323,7 +312,7 @@
             const lblMonto = document.getElementById("lblMonto");
             if (lblMonto) lblMonto.innerText = `Monto a Enviar / Convertir (${simOrigen})`;
 
-            // Mostrar u ocultar panel BCV y leyenda
+            // Equivalencia BCV y Cálculo Inverso en el Recuadro de Resultado
             const bcvSection = document.getElementById("bcvSection");
             const bcvEquivalenciaEl = document.getElementById("bcvEquivalencia");
 
@@ -339,7 +328,10 @@
                         let htmlResult = `(${simBCV} ${equivBCV.toFixed(2)} ${nomBCV} BCV)`;
 
                         if (montoBCVDeseado > 0) {
-                            htmlResult += `<div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.15); color: #b7e4c7; font-size: 0.95em;">🎯 Para recibir <strong>${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}</strong> debes enviar: <strong>${simOrigen} ${monto.toFixed(2)}</strong></div>`;
+                            let bsNecesarios = montoBCVDeseado * tasaBCVActiva;
+                            let origenNecesario = (operacion === "multiplicar") ? (tasa > 0 ? bsNecesarios / tasa : 0) : (bsNecesarios * tasa);
+
+                            htmlResult += `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.2); color: #b7e4c7; font-size: 1em;">🎯 Para recibir <strong>${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}</strong> debe enviar:<br><span style="font-size: 1.25em; font-weight: bold; color: #ffffff;">${simOrigen} ${origenNecesario.toFixed(2)}</span> <small style="color: #94a3b8;">(Bs ${bsNecesarios.toFixed(2)})</small></div>`;
                         }
 
                         bcvEquivalenciaEl.innerHTML = htmlResult;
@@ -389,7 +381,9 @@
                 }
 
                 if (tasaBCVActiva > 0 && montoBCVDeseado > 0) {
-                    txt += `🎯 *Monto deseado (${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}):* Enviar ${simOrigen} ${monto.toFixed(2)}\n`;
+                    let bsReq = montoBCVDeseado * tasaBCVActiva;
+                    let origReq = (operacion === "multiplicar") ? (tasa > 0 ? bsReq / tasa : 0) : (bsReq * tasa);
+                    txt += `🎯 *Para recibir ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV} debe enviar:* ${simOrigen} ${origReq.toFixed(2)}\n`;
                 }
             }
 
@@ -425,7 +419,7 @@
 
             setInterval(consultarBCV, 600000); // Refresco automático cada 10 min
 
-            window.calcular = () => ejecutarCalculo(false);
+            window.calcular = ejecutarCalculo;
 
             // Botón de Intercambiar Países (⇆)
             const swapBtn = document.getElementById("swapBtn");
@@ -437,25 +431,19 @@
                         const temp = origenEl.value;
                         origenEl.value = destinoEl.value;
                         destinoEl.value = temp;
-                        ejecutarCalculo(false);
+                        ejecutarCalculo();
                     }
                 });
             }
 
-            const elementosNormales = ["origen", "destino", "monto", "operacion", "monedaBCV"];
+            const elementosNormales = ["origen", "destino", "monto", "operacion", "monedaBCV", "montoBCVDeseado"];
             elementosNormales.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
-                    el.addEventListener("input", () => ejecutarCalculo(false), true);
-                    el.addEventListener("change", () => ejecutarCalculo(false), true);
+                    el.addEventListener("input", ejecutarCalculo, true);
+                    el.addEventListener("change", ejecutarCalculo, true);
                 }
             });
-
-            // Evento especial para la casilla de Monto Deseado USD/EUR
-            const montoBCVDeseadoInput = document.getElementById("montoBCVDeseado");
-            if (montoBCVDeseadoInput) {
-                montoBCVDeseadoInput.addEventListener("input", () => ejecutarCalculo(true), true);
-            }
 
             const btnWhatsapp = document.getElementById("btnWhatsapp");
             if (btnWhatsapp) {
@@ -544,14 +532,14 @@
                     });
 
                     guardarTasasEnStorage();
-                    ejecutarCalculo(false);
+                    ejecutarCalculo();
                     actualizarTablaCruzadaModal();
                     alert("✅ Todas las tasas se guardaron correctamente en tu dispositivo.");
                     if (seccionEditor) seccionEditor.style.display = "none";
                 });
             }
 
-            ejecutarCalculo(false);
+            ejecutarCalculo();
         });
     </script>
 
