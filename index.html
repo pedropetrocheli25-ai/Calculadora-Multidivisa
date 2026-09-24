@@ -35,7 +35,7 @@
 
             <div class="form-group">
                 <label>País Origen</label>
-                <select id="origen" class="form-control" onchange="cargarTasaYCalcular()">
+                <select id="origen" class="form-control">
                     <option value="Perú">Perú</option>
                     <option value="Venezuela">Venezuela</option>
                     <option value="Colombia">Colombia</option>
@@ -44,12 +44,12 @@
             </div>
 
             <div class="swap-container">
-                <button id="swapBtn" class="btn-swap" type="button" title="Intercambiar países" onclick="intercambiarPaises()">⇆</button>
+                <button id="swapBtn" class="btn-swap" type="button" title="Intercambiar países">⇆</button>
             </div>
 
             <div class="form-group">
                 <label>País Destino</label>
-                <select id="destino" class="form-control" onchange="cargarTasaYCalcular()">
+                <select id="destino" class="form-control">
                     <option value="Venezuela" selected>Venezuela</option>
                     <option value="Perú">Perú</option>
                     <option value="Colombia">Colombia</option>
@@ -101,9 +101,9 @@
             <div class="form-group">
                 <label style="display: flex; justify-content: space-between; align-items: center;">
                     <span>Tasa de Cambio Aplicada</span>
-                    <small style="color: #74c69d;">✏️ Editable Localmente</small>
+                    <small style="color: #74c69d; font-weight: bold;">✏️ Editable Localmente</small>
                 </label>
-                <input type="number" id="tasaLocalInput" class="form-control" placeholder="Ej: 271.10" step="any" style="font-weight: bold; color: #74c69d; background-color: #1a202c;" oninput="actualizarTasaManual(this.value)">
+                <input type="number" id="tasaLocalInput" class="form-control" placeholder="Ej: 271.10" step="any" style="font-weight: bold; color: #74c69d; background-color: #1a202c;">
             </div>
 
             <div class="tasa-info-card" id="tasaInfo">
@@ -174,25 +174,55 @@
                 <button class="btn-secondary" id="btnImagenTarifario" style="margin-top: 8px; width: 100%;">🖼️ Descargar / Guardar como Imagen</button>
             </div>
 
-            <button class="btn-secondary" id="verTasasBtn" onclick="toggleTablaTasasModal()" style="margin-top: 12px;">⚙️ Administrar Tabla de Tasas Locales</button>
+            <button class="btn-secondary" id="verTasasBtn" style="margin-top: 12px;">Ver tabla de tasas</button>
 
-            <!-- MODAL DE TASAS EDITABLES LOCALMENTE (TODOS LOS PAÍSES) -->
-            <div id="tablaTasas" class="modal-tasas" style="display: none; background: #1e293b; padding: 15px; border-radius: 12px; margin-top: 15px; border: 1px solid #334155;">
-                <h3 style="color: #74c69d; margin-bottom: 6px;">⚙️ Administrar Todas las Tasas</h3>
-                <p style="font-size: 0.8em; color: #94a3b8; margin-bottom: 12px;">Modifica cualquiera de los pares. Al cambiar los países en la calculadora, se cargará la tasa correspondiente automáticamente.</p>
-                <div class="table-container" style="max-height: 300px; overflow-y: auto;">
-                    <table style="width: 100%; text-align: left; border-collapse: collapse;">
+            <div id="tablaTasas" class="modal-tasas" style="display: none;">
+                <h3>Tabla de Tasas Cruzadas</h3>
+                <div class="table-container">
+                    <table>
                         <thead>
-                            <tr style="border-bottom: 1px solid #334155; color: #b7e4c7; position: sticky; top: 0; background: #1e293b;">
-                                <th style="padding: 6px;">Par (Origen ➔ Destino)</th>
-                                <th style="padding: 6px; text-align: right;">Tasa Configurada</th>
+                            <tr>
+                                <th>Origen</th>
+                                <th>Destino</th>
+                                <th>Tasa</th>
                             </tr>
                         </thead>
                         <tbody id="tablaTasasContent"></tbody>
                     </table>
                 </div>
-                <button type="button" onclick="guardarTablaTasas()" class="btn-secondary" style="margin-top: 12px; width: 100%; background: #10b981; color: white; padding: 10px; font-weight: bold;">💾 Guardar Todas las Tasas</button>
             </div>
+
+            <!-- ========================================== -->
+            <!-- ADMINISTRADOR DE TASAS LOCALES CONFIGURABLES -->
+            <!-- ========================================== -->
+            <button type="button" id="btnAbrirEditor" class="btn-secondary" style="margin-top: 12px; width: 100%; background: #10b981; color: #ffffff; font-weight: bold; padding: 12px; border-radius: 10px; border: none; cursor: pointer;">
+                ⚙️ Editar Todas las Tasas Locales
+            </button>
+
+            <div id="seccionEditorTasas" style="display: none; background: #1e293b; padding: 15px; border-radius: 12px; margin-top: 15px; border: 1px solid #334155;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 style="color: #74c69d; font-size: 1em; margin: 0;">⚙️ Configurar Tasas Locales</h3>
+                    <button type="button" id="btnCerrarEditor" style="background: transparent; border: none; color: #94a3b8; font-size: 1.2em; cursor: pointer;">✖</button>
+                </div>
+                <p style="font-size: 0.8em; color: #94a3b8; margin-bottom: 12px;">
+                    Modifica la tasa de cada par de países. Se guardarán en tu teléfono y se aplicarán automáticamente al cambiar de país.
+                </p>
+                <div style="max-height: 280px; overflow-y: auto; padding-right: 5px;">
+                    <table style="width: 100%; text-align: left; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid #334155; color: #b7e4c7; position: sticky; top: 0; background: #1e293b;">
+                                <th style="padding: 6px; font-size: 0.85em;">Origen ➔ Destino</th>
+                                <th style="padding: 6px; font-size: 0.85em; text-align: right;">Tasa</th>
+                            </tr>
+                        </thead>
+                        <tbody id="listaTasasEditables"></tbody>
+                    </table>
+                </div>
+                <button type="button" id="btnGuardarTodasLasTasas" style="margin-top: 12px; width: 100%; background: #10b981; color: white; padding: 10px; font-weight: bold; border-radius: 8px; border: none; cursor: pointer;">
+                    💾 Guardar Cambios en el Teléfono
+                </button>
+            </div>
+
         </div>
     </div>
 
@@ -204,245 +234,158 @@
     <script>
         const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbz38RwjIQZubHiLh3aPrvBOTjUKxq8nKatNjBg2Xzdf7R0mOKChtDhOXrlbmARSgBf2/exec";
 
-        // MATRIZ DE TASAS LOCALES PARA TODOS LOS PAÍSES
-        const PAISES = ["Perú", "Venezuela", "Colombia", "Brasil"];
-        
-        // Tasas por defecto iniciales
-        const TASAS_DEFAULT = {
-            "Perú-Venezuela": 271.10,
-            "Venezuela-Perú": 271.10,
-            "Colombia-Venezuela": 0.010,
-            "Venezuela-Colombia": 100.00,
-            "Brasil-Venezuela": 7.50,
-            "Venezuela-Brasil": 0.133,
-            "Perú-Colombia": 1050.00,
-            "Colombia-Perú": 0.00095,
-            "Perú-Brasil": 1.45,
-            "Brasil-Perú": 0.69,
-            "Colombia-Brasil": 0.0014,
-            "Brasil-Colombia": 720.00
-        };
+        document.addEventListener("DOMContentLoaded", () => {
+            const PAISES = ["Perú", "Venezuela", "Colombia", "Brasil"];
+            const TASAS_DEFAULT = {
+                "Perú-Venezuela": 271.10,
+                "Venezuela-Perú": 271.10,
+                "Colombia-Venezuela": 0.010,
+                "Venezuela-Colombia": 100.00,
+                "Brasil-Venezuela": 7.50,
+                "Venezuela-Brasil": 0.133,
+                "Perú-Colombia": 1050.00,
+                "Colombia-Perú": 0.00095,
+                "Perú-Brasil": 1.45,
+                "Brasil-Perú": 0.69,
+                "Colombia-Brasil": 0.0014,
+                "Brasil-Colombia": 720.00
+            };
 
-        let tasasLocales = JSON.parse(localStorage.getItem("tasasLocales")) || TASAS_DEFAULT;
+            let tasasLocales = JSON.parse(localStorage.getItem("tasasLocales")) || TASAS_DEFAULT;
 
-        function guardarTasasEnStorage() {
-            localStorage.setItem("tasasLocales", JSON.stringify(tasasLocales));
-        }
+            const origenSelect = document.getElementById("origen");
+            const destinoSelect = document.getElementById("destino");
+            const tasaInput = document.getElementById("tasaLocalInput");
+            const montoInput = document.getElementById("monto");
+            const swapBtn = document.getElementById("swapBtn");
 
-        // Obtener la clave del par seleccionado (ej: "Perú-Venezuela")
-        function getParClave() {
-            const origen = document.getElementById("origen")?.value || "Perú";
-            const destino = document.getElementById("destino")?.value || "Venezuela";
-            return `${origen}-${destino}`;
-        }
+            const btnAbrir = document.getElementById("btnAbrirEditor");
+            const btnCerrar = document.getElementById("btnCerrarEditor");
+            const seccionEditor = document.getElementById("seccionEditorTasas");
+            const btnGuardar = document.getElementById("btnGuardarTodasLasTasas");
+            const listaTabla = document.getElementById("listaTasasEditables");
 
-        // Intercambiar países con el botón ⇆
-        function intercambiarPaises() {
-            const origen = document.getElementById("origen");
-            const destino = document.getElementById("destino");
-            if (origen && destino) {
-                const temp = origen.value;
-                origen.value = destino.value;
-                destino.value = temp;
-                cargarTasaYCalcular();
+            function getParClave() {
+                const o = origenSelect ? origenSelect.value : "Perú";
+                const d = destinoSelect ? destinoSelect.value : "Venezuela";
+                return `${o}-${d}`;
             }
-        }
 
-        // Cargar tasa según la combinación de países seleccionada
-        function cargarTasaYCalcular() {
-            const origen = document.getElementById("origen")?.value;
-            const destino = document.getElementById("destino")?.value;
-            const inputTasa = document.getElementById("tasaLocalInput");
-            const clave = getParClave();
+            function actualizarCampoTasa() {
+                const clave = getParClave();
+                const o = origenSelect ? origenSelect.value : "Perú";
+                const d = destinoSelect ? destinoSelect.value : "Venezuela";
 
-            if (origen === destino) {
-                if (inputTasa) inputTasa.value = 1;
-                actualizarDisplayTasaInfo(clave, 1);
-            } else {
-                const tasaActual = tasasLocales[clave] !== undefined ? tasasLocales[clave] : 1;
-                if (inputTasa) {
-                    inputTasa.value = tasaActual;
+                let tasaActual = 1;
+                if (o !== d) {
+                    tasaActual = tasasLocales[clave] !== undefined ? tasasLocales[clave] : 1;
                 }
-                actualizarDisplayTasaInfo(clave, tasaActual);
+
+                if (tasaInput) {
+                    tasaInput.value = tasaActual;
+                }
+
+                // Sincronizar con script.js si maneja un objeto global
+                if (typeof window.tasas !== 'undefined') window.tasas[clave] = tasaActual;
+                if (typeof window.TASAS !== 'undefined') window.TASAS[clave] = tasaActual;
+
+                // Notificar recálculo a la calculadora
+                if (montoInput) {
+                    montoInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
             }
 
-            // Notificar a la calculadora principal (script.js) para recalcular resultados
-            const montoEl = document.getElementById("monto");
-            if (montoEl) {
-                montoEl.dispatchEvent(new Event('input', { bubbles: true }));
-                montoEl.dispatchEvent(new Event('change', { bubbles: true }));
+            // Escuchar cambios de países o botón swap
+            if (origenSelect) origenSelect.addEventListener("change", actualizarCampoTasa);
+            if (destinoSelect) destinoSelect.addEventListener("change", actualizarCampoTasa);
+            if (swapBtn) {
+                swapBtn.addEventListener("click", () => {
+                    setTimeout(actualizarCampoTasa, 60);
+                });
             }
-        }
 
-        function actualizarDisplayTasaInfo(clave, tasa) {
-            const tasaInfo = document.getElementById("tasaInfo");
-            if (tasaInfo) {
-                tasaInfo.innerText = `Tasa actual (${clave}): ${tasa}`;
-            }
-        }
+            // Escuchar cambios manuales de tasa en pantalla
+            if (tasaInput) {
+                tasaInput.addEventListener("input", (e) => {
+                    const val = parseFloat(e.target.value);
+                    const clave = getParClave();
+                    if (!isNaN(val) && val > 0) {
+                        tasasLocales[clave] = val;
+                        localStorage.setItem("tasasLocales", JSON.stringify(tasasLocales));
 
-        // Modificación manual de la tasa en el campo de la pantalla principal
-        function actualizarTasaManual(val) {
-            const num = parseFloat(val);
-            const clave = getParClave();
-            if (!isNaN(num) && num > 0) {
-                tasasLocales[clave] = num;
-                guardarTasasEnStorage();
-                actualizarDisplayTasaInfo(clave, num);
-            }
-            const montoEl = document.getElementById("monto");
-            if (montoEl) {
-                montoEl.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-        }
+                        if (typeof window.tasas !== 'undefined') window.tasas[clave] = val;
+                        if (typeof window.TASAS !== 'undefined') window.TASAS[clave] = val;
 
-        // Modal de edición de tasas completas
-        function toggleTablaTasasModal() {
-            const modal = document.getElementById("tablaTasas");
-            if (!modal) return;
-            if (modal.style.display === "none" || !modal.style.display) {
-                renderTablaTasasEditables();
-                modal.style.display = "block";
-            } else {
-                modal.style.display = "none";
-            }
-        }
-
-        // Renderizar todos los pares de países posibles
-        function renderTablaTasasEditables() {
-            const tbody = document.getElementById("tablaTasasContent");
-            if (!tbody) return;
-            tbody.innerHTML = "";
-
-            PAISES.forEach(o => {
-                PAISES.forEach(d => {
-                    if (o !== d) {
-                        const par = `${o}-${d}`;
-                        const valorActual = tasasLocales[par] !== undefined ? tasasLocales[par] : 1;
-
-                        const tr = document.createElement("tr");
-                        tr.style.borderBottom = "1px solid #334155";
-                        tr.innerHTML = `
-                            <td style="padding: 8px; color: #f8fafc; font-size: 0.85em; font-weight: 600;">
-                                ${o} ➔ ${d}
-                            </td>
-                            <td style="padding: 8px; text-align: right;">
-                                <input type="number" step="any" value="${valorActual}" 
-                                       data-par="${par}" 
-                                       class="input-tasa-tabla form-control" 
-                                       style="padding: 6px 8px; font-size: 0.9em; width: 110px; text-align: right; background: #0f172a; color: #74c69d; border: 1px solid #334155; border-radius: 6px; font-weight: bold;">
-                            </td>
-                        `;
-                        tbody.appendChild(tr);
+                        if (montoInput) {
+                            montoInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        }
                     }
                 });
-            });
-        }
+            }
 
-        // Guardar todas las tasas ingresadas en la tabla
-        function guardarTablaTasas() {
-            const inputs = document.querySelectorAll(".input-tasa-tabla");
-            inputs.forEach(input => {
-                const par = input.getAttribute("data-par");
-                const val = parseFloat(input.value);
-                if (par && !isNaN(val) && val > 0) {
-                    tasasLocales[par] = val;
-                }
-            });
-            guardarTasasEnStorage();
-            cargarTasaYCalcular();
-            alert("✅ Todas las tasas de cambio se guardaron correctamente.");
-            document.getElementById("tablaTasas").style.display = "none";
-        }
+            // Abrir / Cerrar Editor de Tasas
+            if (btnAbrir && seccionEditor) {
+                btnAbrir.addEventListener("click", () => {
+                    renderTablaEditor();
+                    seccionEditor.style.display = seccionEditor.style.display === "none" ? "block" : "none";
+                });
+            }
+
+            if (btnCerrar && seccionEditor) {
+                btnCerrar.addEventListener("click", () => {
+                    seccionEditor.style.display = "none";
+                });
+            }
+
+            function renderTablaEditor() {
+                if (!listaTabla) return;
+                listaTabla.innerHTML = "";
+
+                PAISES.forEach(o => {
+                    PAISES.forEach(d => {
+                        if (o !== d) {
+                            const par = `${o}-${d}`;
+                            const val = tasasLocales[par] !== undefined ? tasasLocales[par] : 1;
+                            const tr = document.createElement("tr");
+                            tr.style.borderBottom = "1px solid #334155";
+                            tr.innerHTML = `
+                                <td style="padding: 8px; color: #f8fafc; font-size: 0.85em; font-weight: 600;">${o} ➔ ${d}</td>
+                                <td style="padding: 8px; text-align: right;">
+                                    <input type="number" step="any" value="${val}" data-par="${par}" class="input-tasa-editor" style="padding: 6px 8px; font-size: 0.9em; width: 100px; text-align: right; background: #0f172a; color: #74c69d; border: 1px solid #334155; border-radius: 6px; font-weight: bold;">
+                                </td>
+                            `;
+                            listaTabla.appendChild(tr);
+                        }
+                    });
+                });
+            }
+
+            // Guardar cambios del editor
+            if (btnGuardar) {
+                btnGuardar.addEventListener("click", () => {
+                    const inputs = document.querySelectorAll(".input-tasa-editor");
+                    inputs.forEach(inp => {
+                        const par = inp.getAttribute("data-par");
+                        const v = parseFloat(inp.value);
+                        if (par && !isNaN(v) && v > 0) {
+                            tasasLocales[par] = v;
+                        }
+                    });
+
+                    localStorage.setItem("tasasLocales", JSON.stringify(tasasLocales));
+                    actualizarCampoTasa();
+                    alert("✅ Todas las tasas se guardaron correctamente en tu dispositivo.");
+                    if (seccionEditor) seccionEditor.style.display = "none";
+                });
+            }
+
+            // Inicialización de la pantalla
+            obtenerSaldoActual();
+            actualizarCampoTasa();
+        });
 
         // Consultar Saldo Actual desde Google Sheets
         async function obtenerSaldoActual() {
             const display = document.getElementById("saldoActualDisplay");
             if (!display) return;
-            display.innerText = "Cargando...";
-            try {
-                const response = await fetch(URL_WEB_APP);
-                const data = await response.json();
-                if (data.status === "success") {
-                    const saldoVal = Number(data.saldoActual) || 0;
-                    display.innerText = "S/ " + saldoVal.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                } else {
-                    display.innerText = "S/ 0.00";
-                }
-            } catch (err) {
-                console.error("Error consultando saldo:", err);
-                display.innerText = "S/ --.--";
-            }
-        }
-
-        // Registrar Operación en Google Sheets
-        async function registrarOperacion(tipoOperacion) {
-            const montoSoles = parseFloat(document.getElementById("monto")?.value) || 0;
-            const compraUsdt = parseFloat(document.getElementById("compraUsdt")?.value) || 3.376;
-            const ventaUsdt = parseFloat(document.getElementById("ventaUsdt")?.value) || 957.00;
-            const nota = document.getElementById("notaControl")?.value || "";
-            
-            const tasaBs = parseFloat(document.getElementById("tasaLocalInput")?.value) || tasasLocales[getParClave()] || 0;
-
-            if (montoSoles <= 0) {
-                alert("Por favor ingresa un monto válido.");
-                return;
-            }
-
-            const payload = {
-                tipo: tipoOperacion,
-                montoSoles: montoSoles,
-                compraUsdt: compraUsdt,
-                tasaBs: tasaBs,
-                ventaUsdt: ventaUsdt,
-                nota: nota
-            };
-
-            try {
-                const response = await fetch(URL_WEB_APP, {
-                    method: "POST",
-                    headers: { "Content-Type": "text/plain;charset=utf-8" },
-                    body: JSON.stringify(payload)
-                });
-
-                const result = await response.json();
-
-                if (result.status === "success") {
-                    const nuevoSaldoVal = Number(result.nuevoSaldo) || 0;
-                    const nuevoSaldoFmt = nuevoSaldoVal.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    
-                    alert(`✅ Operación Registrada Exitosamente (${tipoOperacion})\n\n` +
-                          `▪ Recibe Cliente: Bs ${Number(result.recibeBs).toFixed(2)}\n` +
-                          `▪ Total Saliente (+0.3%): Bs ${Number(result.totalBs).toFixed(2)}\n` +
-                          `▪ Ganancia Estimada: $ ${Number(result.gananciaUsdt).toFixed(2)} USDT\n\n` +
-                          `💰 Nuevo Saldo Perú: S/ ${nuevoSaldoFmt}`);
-                    
-                    document.getElementById("notaControl").value = "";
-                    document.getElementById("saldoActualDisplay").innerText = "S/ " + nuevoSaldoFmt;
-                } else {
-                    alert("❌ Error en Google Sheets: " + result.message);
-                }
-            } catch (error) {
-                console.error("Error al registrar:", error);
-                alert("Ocurrió un error al conectar con Google Sheets.");
-            }
-        }
-
-        document.addEventListener("DOMContentLoaded", () => {
-            obtenerSaldoActual();
-            cargarTasaYCalcular();
-        });
-    </script>
-
-    <!-- Service Worker -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('Service Worker Registrado'))
-                    .catch(err => console.error('Error Service Worker:', err));
-            });
-        }
-    </script>
-</body>
-</html>
+            display.innerText
