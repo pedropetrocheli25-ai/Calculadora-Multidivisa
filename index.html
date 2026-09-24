@@ -145,7 +145,7 @@
             </div>
 
             <!-- ========================================== -->
-            <!-- CONFIGURACIÓN DE TASAS LOCALES (RESTAURADA) -->
+            <!-- CONFIGURACIÓN DE TASAS LOCALES -->
             <!-- ========================================== -->
             <button type="button" id="btnAbrirEditor" class="btn-secondary" style="margin-top: 15px; width: 100%; background: #10b981; color: #ffffff; font-weight: bold; padding: 12px; border-radius: 10px; border: none; cursor: pointer;">
                 ⚙️ Configurar Tasas Locales
@@ -182,7 +182,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="script.js"></script>
 
-    <!-- Lógica Local de Tasas Configurable -->
+    <!-- Sistema de Tasas Locales Integrado -->
     <script>
         const PAISES = ["Perú", "Venezuela", "Colombia", "Brasil"];
         const TASAS_DEFAULT = {
@@ -204,12 +204,39 @@
 
         function guardarTasasEnStorage() {
             localStorage.setItem("tasasLocales", JSON.stringify(tasasLocales));
+            sincronizarGlobales();
         }
 
-        function getParClave() {
-            const o = document.getElementById("origen")?.value || "Perú";
-            const d = document.getElementById("destino")?.value || "Venezuela";
-            return `${o}-${d}`;
+        function sincronizarGlobales() {
+            if (typeof window.tasas === 'object' && window.tasas !== null) {
+                Object.assign(window.tasas, tasasLocales);
+            } else {
+                window.tasas = Object.assign({}, tasasLocales);
+            }
+            if (typeof window.TASAS === 'object' && window.TASAS !== null) {
+                Object.assign(window.TASAS, tasasLocales);
+            } else {
+                window.TASAS = Object.assign({}, tasasLocales);
+            }
+        }
+
+        function obtenerTasaActiva(origen, destino) {
+            if (origen === destino) return 1;
+            const oNorm = origen ? origen.trim() : "Perú";
+            const dNorm = destino ? destino.trim() : "Venezuela";
+            
+            const opciones = [
+                `${oNorm}-${dNorm}`,
+                `${oNorm.replace('ú','u')}-${dNorm.replace('ú','u')}`,
+                `${oNorm.replace('u','ú')}-${dNorm.replace('u','ú')}`
+            ];
+
+            for (let k of opciones) {
+                if (tasasLocales[k] !== undefined && !isNaN(parseFloat(tasasLocales[k]))) {
+                    return parseFloat(tasasLocales[k]);
+                }
+            }
+            return 1;
         }
 
         function formatearMoneda(monto, pais) {
@@ -228,17 +255,13 @@
             return decimales > 0 ? `${simbolo} ${entero},${decimal}` : `${simbolo} ${entero}`;
         }
 
-        function customCalcular() {
+        function ejecutarCalculo() {
             const origen = document.getElementById("origen")?.value || "Perú";
             const destino = document.getElementById("destino")?.value || "Venezuela";
             const monto = parseFloat(document.getElementById("monto")?.value) || 0;
             const operacion = document.getElementById("operacion")?.value || "multiplicar";
-            const clave = getParClave();
 
-            let tasa = 1;
-            if (origen !== destino) {
-                tasa = tasasLocales[clave] !== undefined ? tasasLocales[clave] : (TASAS_DEFAULT[clave] || 1);
-            }
+            const tasa = obtenerTasaActiva(origen, destino);
 
             let resultado = 0;
             if (operacion === "dividir") {
@@ -258,33 +281,56 @@
                 const simOrigen = origen === "Perú" ? "S/" : (origen === "Venezuela" ? "Bs" : (origen === "Colombia" ? "COP $" : "R$"));
                 lblMonto.innerText = `Monto a Enviar / Convertir (${simOrigen})`;
             }
+
+            const bcvSection = document.getElementById("bcvSection");
+            if (bcvSection) {
+                if (origen === "Venezuela" || destino === "Venezuela") {
+                    bcvSection.style.display = "block";
+                } else {
+                    bcvSection.style.display = "none";
+                }
+            }
+
+            actualizarTablaCruzadaModal();
+        }
+
+        function actualizarTablaCruzadaModal() {
+            const tbody = document.getElementById("tablaTasasContent");
+            if (!tbody) return;
+            tbody.innerHTML = "";
+            PAISES.forEach(o => {
+                PAISES.forEach(d => {
+                    if (o !== d) {
+                        const t = obtenerTasaActiva(o, d);
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `<td style="padding: 6px;">${o}</td><td style="padding: 6px;">${d}</td><td style="padding: 6px; font-weight: bold; color: #74c69d;">${t}</td>`;
+                        tbody.appendChild(tr);
+                    }
+                });
+            });
         }
 
         document.addEventListener("DOMContentLoaded", () => {
-            const origenSelect = document.getElementById("origen");
-            const destinoSelect = document.getElementById("destino");
-            const swapBtn = document.getElementById("swapBtn");
-            const montoInput = document.getElementById("monto");
-            const operacionSelect = document.getElementById("operacion");
+            sincronizarGlobales();
+
+            // Interceptar llamada de script.js
+            window.calcular = ejecutarCalculo;
+
+            const elementosForm = ["origen", "destino", "monto", "operacion", "swapBtn", "monedaBCV", "montoBCVDeseado"];
+            elementosForm.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener("input", ejecutarCalculo, true);
+                    el.addEventListener("change", ejecutarCalculo, true);
+                    el.addEventListener("click", () => setTimeout(ejecutarCalculo, 50), true);
+                }
+            });
 
             const btnAbrir = document.getElementById("btnAbrirEditor");
             const btnCerrar = document.getElementById("btnCerrarEditor");
             const seccionEditor = document.getElementById("seccionEditorTasas");
             const btnGuardar = document.getElementById("btnGuardarTodasLasTasas");
             const listaTabla = document.getElementById("listaTasasEditables");
-
-            [origenSelect, destinoSelect].forEach(el => {
-                if (el) el.addEventListener("change", () => setTimeout(customCalcular, 30));
-            });
-
-            if (swapBtn) swapBtn.addEventListener("click", () => setTimeout(customCalcular, 60));
-
-            [montoInput, operacionSelect].forEach(el => {
-                if (el) {
-                    el.addEventListener("input", () => setTimeout(customCalcular, 20));
-                    el.addEventListener("change", () => setTimeout(customCalcular, 20));
-                }
-            });
 
             if (btnAbrir && seccionEditor) {
                 btnAbrir.addEventListener("click", () => {
@@ -305,7 +351,7 @@
                     PAISES.forEach(d => {
                         if (o !== d) {
                             const par = `${o}-${d}`;
-                            const val = tasasLocales[par] !== undefined ? tasasLocales[par] : (TASAS_DEFAULT[par] || 1);
+                            const val = obtenerTasaActiva(o, d);
                             const tr = document.createElement("tr");
                             tr.style.borderBottom = "1px solid #334155";
                             tr.innerHTML = `
@@ -332,13 +378,13 @@
                     });
 
                     guardarTasasEnStorage();
-                    customCalcular();
+                    ejecutarCalculo();
                     alert("✅ Todas las tasas se guardaron correctamente en tu dispositivo.");
                     if (seccionEditor) seccionEditor.style.display = "none";
                 });
             }
 
-            customCalcular();
+            ejecutarCalculo();
         });
     </script>
 
