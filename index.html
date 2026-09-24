@@ -79,7 +79,7 @@
 
             <div class="form-group" id="montoGroup">
                 <label id="lblMonto">Monto a Enviar / Convertir (S/)</label>
-                <input type="number" id="monto" class="form-control" value="100" placeholder="0.00" step="any">
+                <input type="number" id="monto" class="form-control" placeholder="0.00" step="any">
             </div>
 
             <div class="form-group">
@@ -322,16 +322,20 @@
                 if (bcvEquivalenciaEl) {
                     if (tasaBCVActiva > 0) {
                         bcvEquivalenciaEl.style.display = "block";
-                        let totalBs = (destino === "Venezuela") ? resultado : monto;
-                        let equivBCV = totalBs > 0 ? (totalBs / tasaBCVActiva) : 0;
+                        let htmlResult = "";
 
-                        let htmlResult = `(${simBCV} ${equivBCV.toFixed(2)} ${nomBCV} BCV)`;
+                        if (monto > 0) {
+                            let totalBs = (destino === "Venezuela") ? resultado : monto;
+                            let equivBCV = totalBs > 0 ? (totalBs / tasaBCVActiva) : 0;
+                            htmlResult += `(${simBCV} ${equivBCV.toFixed(2)} ${nomBCV} BCV)`;
+                        }
 
                         if (montoBCVDeseado > 0) {
                             let bsNecesarios = montoBCVDeseado * tasaBCVActiva;
                             let origenNecesario = (operacion === "multiplicar") ? (tasa > 0 ? bsNecesarios / tasa : 0) : (bsNecesarios * tasa);
 
-                            htmlResult += `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.2); color: #b7e4c7; font-size: 1em;">🎯 Para recibir <strong>${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}</strong> debe enviar:<br><span style="font-size: 1.25em; font-weight: bold; color: #ffffff;">${simOrigen} ${origenNecesario.toFixed(2)}</span> <small style="color: #94a3b8;">(Bs ${bsNecesarios.toFixed(2)})</small></div>`;
+                            let marginTop = monto > 0 ? "margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.2);" : "";
+                            htmlResult += `<div style="${marginTop} color: #b7e4c7; font-size: 1em;">🎯 Para recibir <strong>${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}</strong> debe enviar:<br><span style="font-size: 1.25em; font-weight: bold; color: #ffffff;">${simOrigen} ${origenNecesario.toFixed(2)}</span> <small style="color: #94a3b8;">(Bs ${bsNecesarios.toFixed(2)})</small></div>`;
                         }
 
                         bcvEquivalenciaEl.innerHTML = htmlResult;
@@ -352,6 +356,7 @@
             const origen = document.getElementById("origen")?.value || "Perú";
             const destino = document.getElementById("destino")?.value || "Venezuela";
             const monto = parseFloat(document.getElementById("monto")?.value) || 0;
+            const montoBCVDeseado = parseFloat(document.getElementById("montoBCVDeseado")?.value) || 0;
             const operacion = document.getElementById("operacion")?.value || "multiplicar";
             const tasa = obtenerTasaActiva(origen, destino);
 
@@ -362,20 +367,26 @@
 
             let txt = `💸 *COTIZACIÓN DE REMESA* 💸\n`;
             txt += `-----------------------------------\n`;
-            txt += `▪ *Enviar:* ${simOrigen} ${monto.toFixed(2)}\n`;
-            txt += `▪ *De:* ${origen} ➔ *A:* ${destino}\n`;
-            txt += `▪ *Tasa:* ${tasa}\n`;
-            txt += `▪ *Recibe:* ${resFormateado}\n`;
+
+            // Si el monto a enviar es mayor a 0, incluir líneas estándar
+            if (monto > 0) {
+                txt += `▪ *Enviar:* ${simOrigen} ${monto.toFixed(2)}\n`;
+                txt += `▪ *De:* ${origen} ➔ *A:* ${destino}\n`;
+                txt += `▪ *Tasa:* ${tasa}\n`;
+                txt += `▪ *Recibe:* ${resFormateado}\n`;
+            } else {
+                txt += `▪ *De:* ${origen} ➔ *A:* ${destino}\n`;
+                txt += `▪ *Tasa:* ${tasa}\n`;
+            }
 
             if (origen === "Venezuela" || destino === "Venezuela") {
                 const monedaBCV = document.getElementById("monedaBCV")?.value || "USD";
-                const montoBCVDeseado = parseFloat(document.getElementById("montoBCVDeseado")?.value) || 0;
                 const tasaBCVActiva = (monedaBCV === "EUR") ? tasaEurBCV : tasaUsdBCV;
                 const simBCV = (monedaBCV === "EUR") ? "€" : "$";
                 const nomBCV = (monedaBCV === "EUR") ? "EUR" : "USD";
 
                 let totalBs = (destino === "Venezuela") ? resultado : monto;
-                if (tasaBCVActiva > 0 && totalBs > 0) {
+                if (tasaBCVActiva > 0 && totalBs > 0 && monto > 0) {
                     let equiv = (totalBs / tasaBCVActiva).toFixed(2);
                     txt += `▪ *Equivalente BCV:* ${simBCV} ${equiv} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
                 }
