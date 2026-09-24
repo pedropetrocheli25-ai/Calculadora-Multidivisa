@@ -103,7 +103,7 @@
                     <span>Tasa de Cambio Aplicada</span>
                     <small style="color: #74c69d; font-weight: bold;">✏️ Editable Localmente</small>
                 </label>
-                <input type="number" id="tasaLocalInput" class="form-control" placeholder="Ej: 271.10" step="any" style="font-weight: bold; color: #74c69d; background-color: #1a202c;">
+                <input type="number" id="tasaLocalInput" class="form-control" placeholder="Ej: 271.10" step="any" style="font-weight: bold; color: #74c69d; background-color: #1a202c; font-size: 1.1em;">
             </div>
 
             <div class="tasa-info-card" id="tasaInfo">
@@ -195,7 +195,7 @@
             <!-- ========================================== -->
             <!-- ADMINISTRADOR DE TASAS LOCALES CONFIGURABLES -->
             <!-- ========================================== -->
-            <button type="button" id="btnAbrirEditor" class="btn-secondary" style="margin-top: 12px; width: 100%; background: #10b981; color: #ffffff; font-weight: bold; padding: 12px; border-radius: 10px; border: none; cursor: pointer;">
+            <button type="button" id="btnAbrirEditor" class="btn-secondary" style="margin-top: 15px; width: 100%; background: #10b981; color: #ffffff; font-weight: bold; padding: 12px; border-radius: 10px; border: none; cursor: pointer;">
                 ⚙️ Editar Todas las Tasas Locales
             </button>
 
@@ -234,30 +234,124 @@
     <script>
         const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbz38RwjIQZubHiLh3aPrvBOTjUKxq8nKatNjBg2Xzdf7R0mOKChtDhOXrlbmARSgBf2/exec";
 
+        const PAISES = ["Perú", "Venezuela", "Colombia", "Brasil"];
+        const TASAS_DEFAULT = {
+            "Perú-Venezuela": 271.10,
+            "Venezuela-Perú": 271.10,
+            "Colombia-Venezuela": 0.010,
+            "Venezuela-Colombia": 100.00,
+            "Brasil-Venezuela": 7.50,
+            "Venezuela-Brasil": 0.133,
+            "Perú-Colombia": 1050.00,
+            "Colombia-Perú": 0.00095,
+            "Perú-Brasil": 1.45,
+            "Brasil-Perú": 0.69,
+            "Colombia-Brasil": 0.0014,
+            "Brasil-Colombia": 720.00
+        };
+
+        let tasasLocales = JSON.parse(localStorage.getItem("tasasLocales")) || TASAS_DEFAULT;
+
+        function guardarTasasEnStorage() {
+            localStorage.setItem("tasasLocales", JSON.stringify(tasasLocales));
+        }
+
+        function getParClave() {
+            const o = document.getElementById("origen")?.value || "Perú";
+            const d = document.getElementById("destino")?.value || "Venezuela";
+            return `${o}-${d}`;
+        }
+
+        function formatearMoneda(monto, pais) {
+            if (isNaN(monto) || !isFinite(monto)) monto = 0;
+            
+            let simbolo = "Bs";
+            let decimales = 2;
+            
+            if (pais === "Venezuela") {
+                simbolo = "Bs";
+                decimales = 2;
+            } else if (pais === "Perú") {
+                simbolo = "S/";
+                decimales = 2;
+            } else if (pais === "Colombia") {
+                simbolo = "COP $";
+                decimales = (monto % 1 === 0) ? 0 : 2;
+            } else if (pais === "Brasil") {
+                simbolo = "R$";
+                decimales = 2;
+            }
+            
+            const partes = monto.toFixed(decimales).split(".");
+            const entero = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            const decimal = partes[1];
+            
+            if (decimales > 0) {
+                return `${simbolo} ${entero},${decimal}`;
+            } else {
+                return `${simbolo} ${entero}`;
+            }
+        }
+
+        function customCalcular() {
+            const origen = document.getElementById("origen")?.value || "Perú";
+            const destino = document.getElementById("destino")?.value || "Venezuela";
+            const monto = parseFloat(document.getElementById("monto")?.value) || 0;
+            const operacion = document.getElementById("operacion")?.value || "multiplicar";
+            
+            const tasaInput = document.getElementById("tasaLocalInput");
+            let tasa = parseFloat(tasaInput?.value) || 0;
+            
+            let resultado = 0;
+            if (operacion === "dividir") {
+                resultado = tasa > 0 ? (monto / tasa) : 0;
+            } else {
+                resultado = monto * tasa;
+            }
+            
+            const resultadoEl = document.getElementById("resultado");
+            if (resultadoEl) {
+                resultadoEl.innerText = formatearMoneda(resultado, destino);
+            }
+            
+            const tasaInfoEl = document.getElementById("tasaInfo");
+            if (tasaInfoEl) {
+                tasaInfoEl.innerText = `Tasa actual (${origen} ➔ ${destino}): ${tasa}`;
+            }
+            
+            const lblMonto = document.getElementById("lblMonto");
+            if (lblMonto) {
+                const simOrigen = origen === "Perú" ? "S/" : (origen === "Venezuela" ? "Bs" : (origen === "Colombia" ? "COP $" : "R$"));
+                lblMonto.innerText = `Monto a Enviar / Convertir (${simOrigen})`;
+            }
+        }
+
+        function alCambiarPais() {
+            const origen = document.getElementById("origen")?.value || "Perú";
+            const destino = document.getElementById("destino")?.value || "Venezuela";
+            const clave = getParClave();
+            const tasaInput = document.getElementById("tasaLocalInput");
+
+            if (tasaInput) {
+                if (origen === destino) {
+                    tasaInput.value = 1;
+                } else {
+                    const tasaGuardada = tasasLocales[clave] !== undefined ? tasasLocales[clave] : (TASAS_DEFAULT[clave] || 1);
+                    tasaInput.value = tasaGuardada;
+                }
+            }
+
+            customCalcular();
+            setTimeout(customCalcular, 50);
+        }
+
         document.addEventListener("DOMContentLoaded", () => {
-            const PAISES = ["Perú", "Venezuela", "Colombia", "Brasil"];
-            const TASAS_DEFAULT = {
-                "Perú-Venezuela": 271.10,
-                "Venezuela-Perú": 271.10,
-                "Colombia-Venezuela": 0.010,
-                "Venezuela-Colombia": 100.00,
-                "Brasil-Venezuela": 7.50,
-                "Venezuela-Brasil": 0.133,
-                "Perú-Colombia": 1050.00,
-                "Colombia-Perú": 0.00095,
-                "Perú-Brasil": 1.45,
-                "Brasil-Perú": 0.69,
-                "Colombia-Brasil": 0.0014,
-                "Brasil-Colombia": 720.00
-            };
-
-            let tasasLocales = JSON.parse(localStorage.getItem("tasasLocales")) || TASAS_DEFAULT;
-
             const origenSelect = document.getElementById("origen");
             const destinoSelect = document.getElementById("destino");
-            const tasaInput = document.getElementById("tasaLocalInput");
-            const montoInput = document.getElementById("monto");
             const swapBtn = document.getElementById("swapBtn");
+            const montoInput = document.getElementById("monto");
+            const operacionSelect = document.getElementById("operacion");
+            const tasaInput = document.getElementById("tasaLocalInput");
 
             const btnAbrir = document.getElementById("btnAbrirEditor");
             const btnCerrar = document.getElementById("btnCerrarEditor");
@@ -265,65 +359,46 @@
             const btnGuardar = document.getElementById("btnGuardarTodasLasTasas");
             const listaTabla = document.getElementById("listaTasasEditables");
 
-            function getParClave() {
-                const o = origenSelect ? origenSelect.value : "Perú";
-                const d = destinoSelect ? destinoSelect.value : "Venezuela";
-                return `${o}-${d}`;
-            }
-
-            function actualizarCampoTasa() {
-                const clave = getParClave();
-                const o = origenSelect ? origenSelect.value : "Perú";
-                const d = destinoSelect ? destinoSelect.value : "Venezuela";
-
-                let tasaActual = 1;
-                if (o !== d) {
-                    tasaActual = tasasLocales[clave] !== undefined ? tasasLocales[clave] : 1;
+            [origenSelect, destinoSelect].forEach(el => {
+                if (el) {
+                    el.addEventListener("change", () => {
+                        alCambiarPais();
+                    });
                 }
+            });
 
-                if (tasaInput) {
-                    tasaInput.value = tasaActual;
-                }
-
-                // Sincronizar con script.js si maneja un objeto global
-                if (typeof window.tasas !== 'undefined') window.tasas[clave] = tasaActual;
-                if (typeof window.TASAS !== 'undefined') window.TASAS[clave] = tasaActual;
-
-                // Notificar recálculo a la calculadora
-                if (montoInput) {
-                    montoInput.dispatchEvent(new Event('input', { bubbles: true }));
-                }
-            }
-
-            // Escuchar cambios de países o botón swap
-            if (origenSelect) origenSelect.addEventListener("change", actualizarCampoTasa);
-            if (destinoSelect) destinoSelect.addEventListener("change", actualizarCampoTasa);
             if (swapBtn) {
                 swapBtn.addEventListener("click", () => {
-                    setTimeout(actualizarCampoTasa, 60);
+                    setTimeout(alCambiarPais, 60);
                 });
             }
 
-            // Escuchar cambios manuales de tasa en pantalla
+            [montoInput, operacionSelect].forEach(el => {
+                if (el) {
+                    el.addEventListener("input", () => {
+                        setTimeout(customCalcular, 20);
+                    });
+                    el.addEventListener("change", () => {
+                        setTimeout(customCalcular, 20);
+                    });
+                }
+            });
+
             if (tasaInput) {
                 tasaInput.addEventListener("input", (e) => {
                     const val = parseFloat(e.target.value);
                     const clave = getParClave();
-                    if (!isNaN(val) && val > 0) {
+                    const o = origenSelect?.value;
+                    const d = destinoSelect?.value;
+
+                    if (!isNaN(val) && val > 0 && o !== d) {
                         tasasLocales[clave] = val;
-                        localStorage.setItem("tasasLocales", JSON.stringify(tasasLocales));
-
-                        if (typeof window.tasas !== 'undefined') window.tasas[clave] = val;
-                        if (typeof window.TASAS !== 'undefined') window.TASAS[clave] = val;
-
-                        if (montoInput) {
-                            montoInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        }
+                        guardarTasasEnStorage();
                     }
+                    customCalcular();
                 });
             }
 
-            // Abrir / Cerrar Editor de Tasas
             if (btnAbrir && seccionEditor) {
                 btnAbrir.addEventListener("click", () => {
                     renderTablaEditor();
@@ -345,7 +420,7 @@
                     PAISES.forEach(d => {
                         if (o !== d) {
                             const par = `${o}-${d}`;
-                            const val = tasasLocales[par] !== undefined ? tasasLocales[par] : 1;
+                            const val = tasasLocales[par] !== undefined ? tasasLocales[par] : (TASAS_DEFAULT[par] || 1);
                             const tr = document.createElement("tr");
                             tr.style.borderBottom = "1px solid #334155";
                             tr.innerHTML = `
@@ -360,7 +435,6 @@
                 });
             }
 
-            // Guardar cambios del editor
             if (btnGuardar) {
                 btnGuardar.addEventListener("click", () => {
                     const inputs = document.querySelectorAll(".input-tasa-editor");
@@ -372,20 +446,97 @@
                         }
                     });
 
-                    localStorage.setItem("tasasLocales", JSON.stringify(tasasLocales));
-                    actualizarCampoTasa();
+                    guardarTasasEnStorage();
+                    alCambiarPais();
                     alert("✅ Todas las tasas se guardaron correctamente en tu dispositivo.");
                     if (seccionEditor) seccionEditor.style.display = "none";
                 });
             }
 
-            // Inicialización de la pantalla
             obtenerSaldoActual();
-            actualizarCampoTasa();
+            alCambiarPais();
         });
 
-        // Consultar Saldo Actual desde Google Sheets
         async function obtenerSaldoActual() {
             const display = document.getElementById("saldoActualDisplay");
             if (!display) return;
-            display.innerText
+            display.innerText = "Cargando...";
+            try {
+                const response = await fetch(URL_WEB_APP);
+                const data = await response.json();
+                if (data.status === "success") {
+                    const saldoVal = Number(data.saldoActual) || 0;
+                    display.innerText = "S/ " + saldoVal.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                } else {
+                    display.innerText = "S/ 0.00";
+                }
+            } catch (err) {
+                console.error("Error consultando saldo:", err);
+                display.innerText = "S/ --.--";
+            }
+        }
+
+        async function registrarOperacion(tipoOperacion) {
+            const montoSoles = parseFloat(document.getElementById("monto")?.value) || 0;
+            const compraUsdt = parseFloat(document.getElementById("compraUsdt")?.value) || 3.376;
+            const ventaUsdt = parseFloat(document.getElementById("ventaUsdt")?.value) || 957.00;
+            const nota = document.getElementById("notaControl")?.value || "";
+            const tasaBs = parseFloat(document.getElementById("tasaLocalInput")?.value) || 0;
+
+            if (montoSoles <= 0) {
+                alert("Por favor ingresa un monto válido.");
+                return;
+            }
+
+            const payload = {
+                tipo: tipoOperacion,
+                montoSoles: montoSoles,
+                compraUsdt: compraUsdt,
+                tasaBs: tasaBs,
+                ventaUsdt: ventaUsdt,
+                nota: nota
+            };
+
+            try {
+                const response = await fetch(URL_WEB_APP, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.status === "success") {
+                    const nuevoSaldoVal = Number(result.nuevoSaldo) || 0;
+                    const nuevoSaldoFmt = nuevoSaldoVal.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    
+                    alert(`✅ Operación Registrada Exitosamente (${tipoOperacion})\n\n` +
+                          `▪ Recibe Cliente: Bs ${Number(result.recibeBs).toFixed(2)}\n` +
+                          `▪ Total Saliente (+0.3%): Bs ${Number(result.totalBs).toFixed(2)}\n` +
+                          `▪ Ganancia Estimada: $ ${Number(result.gananciaUsdt).toFixed(2)} USDT\n\n` +
+                          `💰 Nuevo Saldo Perú: S/ ${nuevoSaldoFmt}`);
+                    
+                    document.getElementById("notaControl").value = "";
+                    document.getElementById("saldoActualDisplay").innerText = "S/ " + nuevoSaldoFmt;
+                } else {
+                    alert("❌ Error en Google Sheets: " + result.message);
+                }
+            } catch (error) {
+                console.error("Error al registrar:", error);
+                alert("Ocurrió un error al conectar con Google Sheets.");
+            }
+        }
+    </script>
+
+    <!-- Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker Registrado'))
+                    .catch(err => console.error('Error Service Worker:', err));
+            });
+        }
+    </script>
+</body>
+</html>
