@@ -97,7 +97,6 @@
             <div class="result-box">
                 <span class="result-title" id="lblResultadoTitle">Resultado</span>
                 <div class="result-amount" id="resultado">S/ 0,00</div>
-                <div id="mensajeDetalleResultado" style="margin-top: 6px; font-size: 1.05em; color: #e2e8f0; font-weight: 500;"></div>
                 <div id="bcvEquivalencia" style="display: none; margin-top: 8px; font-size: 0.95em; color: #74c69d; font-weight: 600;"></div>
             </div>
 
@@ -342,18 +341,9 @@
             // Redondear siempre hacia arriba al próximo .10
             let resultado = redondearAlSiguienteDiez(resultadoCalculado);
 
+            // Muestra siempre el resultado formateado en la moneda del país destino (S/, Bs, COP $, R$)
             const resultadoEl = document.getElementById("resultado");
             if (resultadoEl) resultadoEl.innerText = formatearMoneda(resultado, destino);
-
-            const mensajeDetalleEl = document.getElementById("mensajeDetalleResultado");
-            if (mensajeDetalleEl) {
-                if (monto > 0) {
-                    mensajeDetalleEl.innerHTML = `Por <strong>${formatearMoneda(monto, origen)}</strong> recibirás <strong>${formatearMoneda(resultado, destino)}</strong>`;
-                    mensajeDetalleEl.style.display = "block";
-                } else {
-                    mensajeDetalleEl.style.display = "none";
-                }
-            }
 
             const tasaInfoEl = document.getElementById("tasaInfo");
             if (tasaInfoEl) tasaInfoEl.innerText = `Tasa actual (${origen} ➔ ${destino}): ${tasa}`;
@@ -361,7 +351,7 @@
             const lblMonto = document.getElementById("lblMonto");
             if (lblMonto) lblMonto.innerText = `Monto a Enviar / Convertir (${simOrigen})`;
 
-            // Equivalencia BCV
+            // Equivalencia BCV en la pantalla verde
             const bcvSection = document.getElementById("bcvSection");
             const bcvEquivalenciaEl = document.getElementById("bcvEquivalencia");
 
@@ -421,14 +411,13 @@
             txt += `-----------------------------------\n`;
 
             if (monto > 0) {
-                txt += `▪ *Enviar:* ${montoFormateado}\n`;
-                txt += `▪ *De:* ${origen} ➔ *A:* ${destino}\n`;
-                txt += `▪ *Tasa:* ${tasa}\n`;
-                txt += `▪ *Recibe:* ${resFormateado}\n`;
-                txt += `👉 *Por ${montoFormateado} recibirás ${resFormateado}*\n`;
+                txt += `➖ *Enviar:* ${montoFormateado}\n`;
+                txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+                txt += `➖ *Tasa:* ${tasa}\n`;
+                txt += `➖ *Recibe:* ${resFormateado}\n`;
             } else {
-                txt += `▪ *De:* ${origen} ➔ *A:* ${destino}\n`;
-                txt += `▪ *Tasa:* ${tasa}\n`;
+                txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+                txt += `➖ *Tasa:* ${tasa}\n`;
             }
 
             if (origen === "Venezuela" || destino === "Venezuela") {
@@ -440,7 +429,7 @@
                 let totalBs = (destino === "Venezuela") ? resultado : monto;
                 if (tasaBCVActiva > 0 && totalBs > 0 && monto > 0) {
                     let equiv = (totalBs / tasaBCVActiva).toFixed(2);
-                    txt += `▪ *Equivalente BCV:* ${simBCV} ${equiv} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
+                    txt += `➖ *Equivalente BCV:* ${simBCV} ${equiv} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
                 }
 
                 if (tasaBCVActiva > 0 && montoBCVDeseado > 0) {
@@ -449,6 +438,10 @@
                     let origReq = redondearAlSiguienteDiez(origReqCalculado);
                     txt += `🎯 *Para recibir ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV} debe enviar:* ${simOrigen} ${origReq.toFixed(2)}\n`;
                 }
+            }
+
+            if (monto > 0) {
+                txt += `👉 *Por ${montoFormateado} recibirás ${resFormateado}*\n`;
             }
 
             txt += `-----------------------------------\n`;
