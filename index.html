@@ -70,6 +70,11 @@
                         <option value="EUR">💶 Euro (EUR)</option>
                     </select>
                 </div>
+
+                <div class="form-group" style="margin-top: 10px;">
+                    <label>🎯 ¿Deseas recibir un monto exacto en USD/EUR? (Opcional)</label>
+                    <input type="number" id="montoBCVDeseado" class="form-control" placeholder="Ej: 10" step="any">
+                </div>
             </div>
 
             <div class="form-group" id="montoGroup">
@@ -92,7 +97,7 @@
             <div class="result-box">
                 <span class="result-title" id="lblResultadoTitle">Resultado</span>
                 <div class="result-amount" id="resultado">Bs 0,00</div>
-                <div id="bcvEquivalencia" style="display: none; margin-top: 8px; font-size: 0.95em; color: #74c69d; font-weight: 600;"></div>
+                <div id="bcvEquivalencia" style="display: none; margin-top: 10px; font-size: 0.95em; color: #74c69d; font-weight: 600;"></div>
             </div>
 
             <!-- BOTONES DE ACCIÓN RÁPIDA -->
@@ -154,7 +159,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="script.js"></script>
 
-    <!-- Lógica de la Aplicación -->
+    <!-- Lógica Autónoma Integrada -->
     <script>
         const PAISES = ["Perú", "Venezuela", "Colombia", "Brasil"];
         const TASAS_DEFAULT = {
@@ -306,9 +311,11 @@
                 lblMonto.innerText = `Monto a Enviar / Convertir (${simOrigen})`;
             }
 
+            // Equivalencia BCV
             const bcvSection = document.getElementById("bcvSection");
             const bcvEquivalenciaEl = document.getElementById("bcvEquivalencia");
             const monedaBCV = document.getElementById("monedaBCV")?.value || "USD";
+            const montoBCVDeseado = parseFloat(document.getElementById("montoBCVDeseado")?.value) || 0;
 
             if (origen === "Venezuela" || destino === "Venezuela") {
                 if (bcvSection) bcvSection.style.display = "block";
@@ -323,7 +330,14 @@
                         let totalBs = (destino === "Venezuela") ? resultado : monto;
                         let equivBCV = totalBs > 0 ? (totalBs / tasaBCVActiva) : 0;
 
-                        bcvEquivalenciaEl.innerHTML = `(${simBCV} ${equivBCV.toFixed(2)} ${nomBCV} BCV)`;
+                        let htmlResult = `(${simBCV} ${equivBCV.toFixed(2)} ${nomBCV} BCV)`;
+
+                        if (montoBCVDeseado > 0) {
+                            let bsRequeridos = montoBCVDeseado * tasaBCVActiva;
+                            htmlResult += `<div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.15); color: #b7e4c7; font-size: 0.95em;">🎯 Para recibir <strong>${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV} BCV</strong> necesitas: <strong>Bs ${bsRequeridos.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></div>`;
+                        }
+
+                        bcvEquivalenciaEl.innerHTML = htmlResult;
                     } else {
                         bcvEquivalenciaEl.style.display = "block";
                         bcvEquivalenciaEl.innerHTML = `(Cargando equivalente BCV...)`;
@@ -358,6 +372,7 @@
 
             if (origen === "Venezuela" || destino === "Venezuela") {
                 const monedaBCV = document.getElementById("monedaBCV")?.value || "USD";
+                const montoBCVDeseado = parseFloat(document.getElementById("montoBCVDeseado")?.value) || 0;
                 const tasaBCVActiva = (monedaBCV === "EUR") ? tasaEurBCV : tasaUsdBCV;
                 const simBCV = (monedaBCV === "EUR") ? "€" : "$";
                 const nomBCV = (monedaBCV === "EUR") ? "EUR" : "USD";
@@ -366,6 +381,11 @@
                 if (tasaBCVActiva > 0 && totalBs > 0) {
                     let equiv = (totalBs / tasaBCVActiva).toFixed(2);
                     txt += `▪ *Equivalente BCV:* ${simBCV} ${equiv} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
+                }
+
+                if (tasaBCVActiva > 0 && montoBCVDeseado > 0) {
+                    let bsReq = (montoBCVDeseado * tasaBCVActiva).toFixed(2);
+                    txt += `🎯 *Para recibir ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}:* Bs ${bsReq}\n`;
                 }
             }
 
@@ -399,11 +419,11 @@
             sincronizarGlobales();
             consultarBCV();
 
-            setInterval(consultarBCV, 600000); // Refresco automático cada 10 min
+            setInterval(consultarBCV, 600000); // 10 minutos auto-refresco
 
             window.calcular = ejecutarCalculo;
 
-            // Funcionalidad del Botón de Intercambiar Países (⇆)
+            // Botón de Intercambiar Países (⇆)
             const swapBtn = document.getElementById("swapBtn");
             if (swapBtn) {
                 swapBtn.addEventListener("click", () => {
@@ -418,7 +438,7 @@
                 });
             }
 
-            const elementosForm = ["origen", "destino", "monto", "operacion", "monedaBCV"];
+            const elementosForm = ["origen", "destino", "monto", "operacion", "monedaBCV", "montoBCVDeseado"];
             elementosForm.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
