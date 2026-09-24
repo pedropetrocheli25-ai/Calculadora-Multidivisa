@@ -188,7 +188,7 @@
             }
         });
 
-        // Función ajustada para redondear siempre al siguiente decimal (.10, .20, .30, ..., .50, etc.)
+        // Redondea siempre hacia arriba al siguiente decimal (.10, .20, .30, ..., .50, etc.)
         function redondearAlSiguienteDiez(val) {
             if (isNaN(val) || !isFinite(val) || val <= 0) return 0;
             return Math.ceil((val + Number.EPSILON) * 10) / 10;
@@ -201,28 +201,57 @@
             if (elUsd) elUsd.innerText = "Cargando...";
             if (elEur) elEur.innerText = "Cargando...";
 
+            // 1. Obtener Dólar BCV (Soporte para tasa actual / mañana)
             try {
-                const resUsd = await fetch("https://ve.dolarapi.com/v1/dolares/oficial");
-                const dataUsd = await resUsd.json();
-                if (dataUsd && dataUsd.promedio) {
-                    tasaUsdBCV = parseFloat(dataUsd.promedio);
-                    if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
+                const res = await fetch("https://ve.dolarapi.com/v1/dolares");
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                    const oficial = data.find(item => item.fuente === "oficial" || item.nombre === "Oficial");
+                    if (oficial && oficial.promedio) {
+                        tasaUsdBCV = parseFloat(oficial.promedio);
+                        if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
+                    }
                 }
             } catch(e) {
-                console.error("Error obteniendo USD BCV:", e);
-                if (elUsd) elUsd.innerText = "Error BCV";
+                try {
+                    const resUsd = await fetch("https://ve.dolarapi.com/v1/dolares/oficial");
+                    const dataUsd = await resUsd.json();
+                    if (dataUsd && dataUsd.promedio) {
+                        tasaUsdBCV = parseFloat(dataUsd.promedio);
+                        if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
+                    }
+                } catch(err) {
+                    console.error("Error obteniendo USD BCV:", err);
+                    if (elUsd) elUsd.innerText = "Error BCV";
+                }
             }
 
+            // 2. Obtener Euro BCV (Soporte para tasa actual / mañana)
             try {
-                const resEur = await fetch("https://ve.dolarapi.com/v1/euros/oficial");
-                const dataEur = await resEur.json();
-                if (dataEur && dataEur.promedio) {
-                    tasaEurBCV = parseFloat(dataEur.promedio);
+                const resEurList = await fetch("https://ve.dolarapi.com/v1/euros");
+                const dataEurList = await resEurList.json();
+                if (Array.isArray(dataEurList)) {
+                    const oficialEur = dataEurList.find(item => item.fuente === "oficial" || item.nombre === "Oficial");
+                    if (oficialEur && oficialEur.promedio) {
+                        tasaEurBCV = parseFloat(oficialEur.promedio);
+                        if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)}`;
+                    }
+                } else if (dataEurList && dataEurList.promedio) {
+                    tasaEurBCV = parseFloat(dataEurList.promedio);
                     if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)}`;
                 }
             } catch(e) {
-                console.error("Error obteniendo EUR BCV:", e);
-                if (elEur) elEur.innerText = "Error BCV";
+                try {
+                    const resEur = await fetch("https://ve.dolarapi.com/v1/euros/oficial");
+                    const dataEur = await resEur.json();
+                    if (dataEur && dataEur.promedio) {
+                        tasaEurBCV = parseFloat(dataEur.promedio);
+                        if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)}`;
+                    }
+                } catch(err) {
+                    console.error("Error obteniendo EUR BCV:", err);
+                    if (elEur) elEur.innerText = "Error BCV";
+                }
             }
 
             ejecutarCalculo();
