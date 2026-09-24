@@ -143,12 +143,204 @@
                     </table>
                 </div>
             </div>
+
+            <!-- ========================================== -->
+            <!-- CONFIGURACIÓN DE TASAS LOCALES (RESTAURADA) -->
+            <!-- ========================================== -->
+            <button type="button" id="btnAbrirEditor" class="btn-secondary" style="margin-top: 15px; width: 100%; background: #10b981; color: #ffffff; font-weight: bold; padding: 12px; border-radius: 10px; border: none; cursor: pointer;">
+                ⚙️ Configurar Tasas Locales
+            </button>
+
+            <div id="seccionEditorTasas" style="display: none; background: #1e293b; padding: 15px; border-radius: 12px; margin-top: 15px; border: 1px solid #334155;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 style="color: #74c69d; font-size: 1em; margin: 0;">⚙️ Modificar Tasas Locales</h3>
+                    <button type="button" id="btnCerrarEditor" style="background: transparent; border: none; color: #94a3b8; font-size: 1.2em; cursor: pointer;">✖</button>
+                </div>
+                <p style="font-size: 0.8em; color: #94a3b8; margin-bottom: 12px;">
+                    Cambia la tasa de cualquier par de países. Se guardará en tu teléfono y la calculadora usará ese valor automáticamente.
+                </p>
+                <div style="max-height: 280px; overflow-y: auto; padding-right: 5px;">
+                    <table style="width: 100%; text-align: left; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid #334155; color: #b7e4c7; position: sticky; top: 0; background: #1e293b;">
+                                <th style="padding: 6px; font-size: 0.85em;">Origen ➔ Destino</th>
+                                <th style="padding: 6px; font-size: 0.85em; text-align: right;">Tasa</th>
+                            </tr>
+                        </thead>
+                        <tbody id="listaTasasEditables"></tbody>
+                    </table>
+                </div>
+                <button type="button" id="btnGuardarTodasLasTasas" style="margin-top: 12px; width: 100%; background: #10b981; color: white; padding: 10px; font-weight: bold; border-radius: 8px; border: none; cursor: pointer;">
+                    💾 Guardar Tasas en el Teléfono
+                </button>
+            </div>
+
         </div>
     </div>
 
     <!-- Librerías de Apoyo -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="script.js"></script>
+
+    <!-- Lógica Local de Tasas Configurable -->
+    <script>
+        const PAISES = ["Perú", "Venezuela", "Colombia", "Brasil"];
+        const TASAS_DEFAULT = {
+            "Perú-Venezuela": 271.10,
+            "Venezuela-Perú": 271.10,
+            "Colombia-Venezuela": 0.010,
+            "Venezuela-Colombia": 100.00,
+            "Brasil-Venezuela": 7.50,
+            "Venezuela-Brasil": 0.133,
+            "Perú-Colombia": 1050.00,
+            "Colombia-Perú": 0.00095,
+            "Perú-Brasil": 1.45,
+            "Brasil-Perú": 0.69,
+            "Colombia-Brasil": 0.0014,
+            "Brasil-Colombia": 720.00
+        };
+
+        let tasasLocales = JSON.parse(localStorage.getItem("tasasLocales")) || TASAS_DEFAULT;
+
+        function guardarTasasEnStorage() {
+            localStorage.setItem("tasasLocales", JSON.stringify(tasasLocales));
+        }
+
+        function getParClave() {
+            const o = document.getElementById("origen")?.value || "Perú";
+            const d = document.getElementById("destino")?.value || "Venezuela";
+            return `${o}-${d}`;
+        }
+
+        function formatearMoneda(monto, pais) {
+            if (isNaN(monto) || !isFinite(monto)) monto = 0;
+            let simbolo = "Bs";
+            let decimales = 2;
+            
+            if (pais === "Venezuela") { simbolo = "Bs"; decimales = 2; }
+            else if (pais === "Perú") { simbolo = "S/"; decimales = 2; }
+            else if (pais === "Colombia") { simbolo = "COP $"; decimales = (monto % 1 === 0) ? 0 : 2; }
+            else if (pais === "Brasil") { simbolo = "R$"; decimales = 2; }
+            
+            const partes = monto.toFixed(decimales).split(".");
+            const entero = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            const decimal = partes[1];
+            return decimales > 0 ? `${simbolo} ${entero},${decimal}` : `${simbolo} ${entero}`;
+        }
+
+        function customCalcular() {
+            const origen = document.getElementById("origen")?.value || "Perú";
+            const destino = document.getElementById("destino")?.value || "Venezuela";
+            const monto = parseFloat(document.getElementById("monto")?.value) || 0;
+            const operacion = document.getElementById("operacion")?.value || "multiplicar";
+            const clave = getParClave();
+
+            let tasa = 1;
+            if (origen !== destino) {
+                tasa = tasasLocales[clave] !== undefined ? tasasLocales[clave] : (TASAS_DEFAULT[clave] || 1);
+            }
+
+            let resultado = 0;
+            if (operacion === "dividir") {
+                resultado = tasa > 0 ? (monto / tasa) : 0;
+            } else {
+                resultado = monto * tasa;
+            }
+
+            const resultadoEl = document.getElementById("resultado");
+            if (resultadoEl) resultadoEl.innerText = formatearMoneda(resultado, destino);
+
+            const tasaInfoEl = document.getElementById("tasaInfo");
+            if (tasaInfoEl) tasaInfoEl.innerText = `Tasa actual (${origen} ➔ ${destino}): ${tasa}`;
+
+            const lblMonto = document.getElementById("lblMonto");
+            if (lblMonto) {
+                const simOrigen = origen === "Perú" ? "S/" : (origen === "Venezuela" ? "Bs" : (origen === "Colombia" ? "COP $" : "R$"));
+                lblMonto.innerText = `Monto a Enviar / Convertir (${simOrigen})`;
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const origenSelect = document.getElementById("origen");
+            const destinoSelect = document.getElementById("destino");
+            const swapBtn = document.getElementById("swapBtn");
+            const montoInput = document.getElementById("monto");
+            const operacionSelect = document.getElementById("operacion");
+
+            const btnAbrir = document.getElementById("btnAbrirEditor");
+            const btnCerrar = document.getElementById("btnCerrarEditor");
+            const seccionEditor = document.getElementById("seccionEditorTasas");
+            const btnGuardar = document.getElementById("btnGuardarTodasLasTasas");
+            const listaTabla = document.getElementById("listaTasasEditables");
+
+            [origenSelect, destinoSelect].forEach(el => {
+                if (el) el.addEventListener("change", () => setTimeout(customCalcular, 30));
+            });
+
+            if (swapBtn) swapBtn.addEventListener("click", () => setTimeout(customCalcular, 60));
+
+            [montoInput, operacionSelect].forEach(el => {
+                if (el) {
+                    el.addEventListener("input", () => setTimeout(customCalcular, 20));
+                    el.addEventListener("change", () => setTimeout(customCalcular, 20));
+                }
+            });
+
+            if (btnAbrir && seccionEditor) {
+                btnAbrir.addEventListener("click", () => {
+                    renderTablaEditor();
+                    seccionEditor.style.display = seccionEditor.style.display === "none" ? "block" : "none";
+                });
+            }
+
+            if (btnCerrar && seccionEditor) {
+                btnCerrar.addEventListener("click", () => seccionEditor.style.display = "none");
+            }
+
+            function renderTablaEditor() {
+                if (!listaTabla) return;
+                listaTabla.innerHTML = "";
+
+                PAISES.forEach(o => {
+                    PAISES.forEach(d => {
+                        if (o !== d) {
+                            const par = `${o}-${d}`;
+                            const val = tasasLocales[par] !== undefined ? tasasLocales[par] : (TASAS_DEFAULT[par] || 1);
+                            const tr = document.createElement("tr");
+                            tr.style.borderBottom = "1px solid #334155";
+                            tr.innerHTML = `
+                                <td style="padding: 8px; color: #f8fafc; font-size: 0.85em; font-weight: 600;">${o} ➔ ${d}</td>
+                                <td style="padding: 8px; text-align: right;">
+                                    <input type="number" step="any" value="${val}" data-par="${par}" class="input-tasa-editor" style="padding: 6px 8px; font-size: 0.9em; width: 100px; text-align: right; background: #0f172a; color: #74c69d; border: 1px solid #334155; border-radius: 6px; font-weight: bold;">
+                                </td>
+                            `;
+                            listaTabla.appendChild(tr);
+                        }
+                    });
+                });
+            }
+
+            if (btnGuardar) {
+                btnGuardar.addEventListener("click", () => {
+                    const inputs = document.querySelectorAll(".input-tasa-editor");
+                    inputs.forEach(inp => {
+                        const par = inp.getAttribute("data-par");
+                        const v = parseFloat(inp.value);
+                        if (par && !isNaN(v) && v > 0) {
+                            tasasLocales[par] = v;
+                        }
+                    });
+
+                    guardarTasasEnStorage();
+                    customCalcular();
+                    alert("✅ Todas las tasas se guardaron correctamente en tu dispositivo.");
+                    if (seccionEditor) seccionEditor.style.display = "none";
+                });
+            }
+
+            customCalcular();
+        });
+    </script>
 
     <!-- Service Worker -->
     <script>
