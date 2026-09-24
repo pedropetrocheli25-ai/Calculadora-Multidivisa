@@ -104,17 +104,18 @@
             <button class="btn-whatsapp" id="btnWhatsapp">📲 Compartir Cálculo por WhatsApp</button>
             <button class="btn-secondary" id="btnCopiarTransaccion" style="margin-top: 8px; width: 100%;">📋 Copiar Cálculo / Cotización</button>
 
-            <button class="btn-secondary" id="verTasasBtn" style="margin-top: 12px;">Ver tabla de tasas</button>
+            <!-- VER TABLA DE TASAS CRUZADAS -->
+            <button type="button" class="btn-secondary" id="verTasasBtn" style="margin-top: 15px; width: 100%; cursor: pointer;">Ver tabla de tasas</button>
 
-            <div id="tablaTasas" class="modal-tasas" style="display: none;">
-                <h3>Tabla de Tasas Cruzadas</h3>
+            <div id="tablaTasas" class="modal-tasas" style="display: none; margin-top: 15px; background: #1e293b; padding: 15px; border-radius: 12px; border: 1px solid #334155;">
+                <h3 style="color: #74c69d; margin-bottom: 12px; font-size: 1.1em; text-align: center;">Tabla de Tasas Cruzadas</h3>
                 <div class="table-container">
-                    <table>
+                    <table style="width: 100%; text-align: left; border-collapse: collapse;">
                         <thead>
-                            <tr>
-                                <th>Origen</th>
-                                <th>Destino</th>
-                                <th>Tasa</th>
+                            <tr style="border-bottom: 1px solid #334155; color: #b7e4c7;">
+                                <th style="padding: 8px;">Origen</th>
+                                <th style="padding: 8px;">Destino</th>
+                                <th style="padding: 8px; text-align: right;">Tasa</th>
                             </tr>
                         </thead>
                         <tbody id="tablaTasasContent"></tbody>
@@ -160,7 +161,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="script.js"></script>
 
-    <!-- Lógica de Tasas con Corrección Anti-Cero -->
+    <!-- Lógica Autónoma para Control e Inyección de Tasas -->
     <script>
         const PAISES = ["Perú", "Venezuela", "Colombia", "Brasil"];
         const TASAS_DEFAULT = {
@@ -180,7 +181,7 @@
 
         let tasasLocales = JSON.parse(localStorage.getItem("tasasLocales")) || {};
 
-        // Asegurar que ningún valor quede en 0 o vacío al cargar
+        // Rellenar valores por defecto si falta alguna clave
         Object.keys(TASAS_DEFAULT).forEach(k => {
             if (!tasasLocales[k] || isNaN(parseFloat(tasasLocales[k])) || parseFloat(tasasLocales[k]) <= 0) {
                 tasasLocales[k] = TASAS_DEFAULT[k];
@@ -201,7 +202,6 @@
                 window.tasas[key] = val;
                 window.TASAS[key] = val;
 
-                // Variantes sin acentos y con guión bajo para compatibilidad
                 const keySinAcento = key.replace(/ú/g, 'u').replace(/Ú/g, 'U');
                 const keyUnderscore = key.replace(/-/g, '_');
                 const keyUnderscoreSinAcento = keySinAcento.replace(/-/g, '_');
@@ -301,7 +301,12 @@
                     if (o !== d) {
                         const t = obtenerTasaActiva(o, d);
                         const tr = document.createElement("tr");
-                        tr.innerHTML = `<td style="padding: 6px;">${o}</td><td style="padding: 6px;">${d}</td><td style="padding: 6px; font-weight: bold; color: #74c69d;">${t}</td>`;
+                        tr.style.borderBottom = "1px solid #334155";
+                        tr.innerHTML = `
+                            <td style="padding: 8px; color: #ffffff;">${o}</td>
+                            <td style="padding: 8px; color: #ffffff;">${d}</td>
+                            <td style="padding: 8px; font-weight: bold; color: #74c69d; text-align: right;">${t}</td>
+                        `;
                         tbody.appendChild(tr);
                     }
                 });
@@ -310,7 +315,6 @@
 
         document.addEventListener("DOMContentLoaded", () => {
             sincronizarGlobales();
-
             window.calcular = ejecutarCalculo;
 
             const elementosForm = ["origen", "destino", "monto", "operacion", "swapBtn", "monedaBCV", "montoBCVDeseado"];
@@ -323,13 +327,22 @@
                 }
             });
 
-            // Intercepta el clic de la tabla de tasas para rellenar datos locales
+            // Control Directo del Botón "Ver tabla de tasas"
             const verTasasBtn = document.getElementById("verTasasBtn");
-            if (verTasasBtn) {
-                verTasasBtn.addEventListener("click", () => {
-                    setTimeout(actualizarTablaCruzadaModal, 30);
-                    setTimeout(actualizarTablaCruzadaModal, 150);
-                });
+            const tablaTasasModal = document.getElementById("tablaTasas");
+
+            if (verTasasBtn && tablaTasasModal) {
+                verTasasBtn.addEventListener("click", (e) => {
+                    e.stopImmediatePropagation();
+                    if (tablaTasasModal.style.display === "none" || !tablaTasasModal.style.display) {
+                        actualizarTablaCruzadaModal();
+                        tablaTasasModal.style.display = "block";
+                        verTasasBtn.innerText = "Ocultar tabla de tasas";
+                    } else {
+                        tablaTasasModal.style.display = "none";
+                        verTasasBtn.innerText = "Ver tabla de tasas";
+                    }
+                }, true);
             }
 
             const btnAbrir = document.getElementById("btnAbrirEditor");
@@ -385,6 +398,7 @@
 
                     guardarTasasEnStorage();
                     ejecutarCalculo();
+                    actualizarTablaCruzadaModal();
                     alert("✅ Todas las tasas se guardaron correctamente en tu dispositivo.");
                     if (seccionEditor) seccionEditor.style.display = "none";
                 });
