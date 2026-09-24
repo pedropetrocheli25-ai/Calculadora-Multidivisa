@@ -30,7 +30,7 @@
                 <label>País Origen</label>
                 <select id="origen" class="form-control">
                     <option value="Perú">Perú</option>
-                    <option value="Venezuela">Venezuela</option>
+                    <option value="Venezuela" selected>Venezuela</option>
                     <option value="Colombia">Colombia</option>
                     <option value="Brasil">Brasil</option>
                 </select>
@@ -43,8 +43,8 @@
             <div class="form-group">
                 <label>País Destino</label>
                 <select id="destino" class="form-control">
-                    <option value="Venezuela" selected>Venezuela</option>
-                    <option value="Perú">Perú</option>
+                    <option value="Perú" selected>Perú</option>
+                    <option value="Venezuela">Venezuela</option>
                     <option value="Colombia">Colombia</option>
                     <option value="Brasil">Brasil</option>
                 </select>
@@ -78,7 +78,7 @@
             </div>
 
             <div class="form-group" id="montoGroup">
-                <label id="lblMonto">Monto a Enviar / Convertir (S/)</label>
+                <label id="lblMonto">Monto a Enviar / Convertir (Bs)</label>
                 <input type="number" id="monto" class="form-control" placeholder="0.00" step="any">
             </div>
 
@@ -86,7 +86,7 @@
                 <label>Operación</label>
                 <select id="operacion" class="form-control">
                     <option value="multiplicar">Multiplicar (Monto × Tasa)</option>
-                    <option value="dividir">Dividir (Monto ÷ Tasa)</option>
+                    <option value="dividir" selected>Dividir (Monto ÷ Tasa)</option>
                 </select>
             </div>
 
@@ -96,8 +96,9 @@
 
             <div class="result-box">
                 <span class="result-title" id="lblResultadoTitle">Resultado</span>
-                <div class="result-amount" id="resultado">Bs 0,00</div>
-                <div id="bcvEquivalencia" style="display: none; margin-top: 10px; font-size: 0.95em; color: #74c69d; font-weight: 600;"></div>
+                <div class="result-amount" id="resultado">S/ 0,00</div>
+                <div id="mensajeDetalleResultado" style="margin-top: 6px; font-size: 1.05em; color: #e2e8f0; font-weight: 500;"></div>
+                <div id="bcvEquivalencia" style="display: none; margin-top: 8px; font-size: 0.95em; color: #74c69d; font-weight: 600;"></div>
             </div>
 
             <!-- BOTONES DE ACCIÓN RÁPIDA -->
@@ -164,7 +165,7 @@
         const PAISES = ["Perú", "Venezuela", "Colombia", "Brasil"];
         const TASAS_DEFAULT = {
             "Perú-Venezuela": 271.10,
-            "Venezuela-Perú": 271.10,
+            "Venezuela-Perú": 285.50,
             "Colombia-Venezuela": 0.010,
             "Venezuela-Colombia": 100.00,
             "Brasil-Venezuela": 7.50,
@@ -186,6 +187,12 @@
                 tasasLocales[k] = TASAS_DEFAULT[k];
             }
         });
+
+        // Función ajustada para redondear siempre al siguiente decimal (.10, .20, .30, ..., .50, etc.)
+        function redondearAlSiguienteDiez(val) {
+            if (isNaN(val) || !isFinite(val) || val <= 0) return 0;
+            return Math.ceil((val + Number.EPSILON) * 10) / 10;
+        }
 
         async function consultarBCV() {
             const elUsd = document.getElementById("bcvUsd");
@@ -301,10 +308,23 @@
             let monto = parseFloat(montoInput?.value) || 0;
             let montoBCVDeseado = parseFloat(montoBCVDeseadoInput?.value) || 0;
 
-            let resultado = (operacion === "dividir") ? (tasa > 0 ? (monto / tasa) : 0) : (monto * tasa);
+            let resultadoCalculado = (operacion === "dividir") ? (tasa > 0 ? (monto / tasa) : 0) : (monto * tasa);
+            
+            // Redondear siempre hacia arriba al próximo .10
+            let resultado = redondearAlSiguienteDiez(resultadoCalculado);
 
             const resultadoEl = document.getElementById("resultado");
             if (resultadoEl) resultadoEl.innerText = formatearMoneda(resultado, destino);
+
+            const mensajeDetalleEl = document.getElementById("mensajeDetalleResultado");
+            if (mensajeDetalleEl) {
+                if (monto > 0) {
+                    mensajeDetalleEl.innerHTML = `Por <strong>${formatearMoneda(monto, origen)}</strong> recibirás <strong>${formatearMoneda(resultado, destino)}</strong>`;
+                    mensajeDetalleEl.style.display = "block";
+                } else {
+                    mensajeDetalleEl.style.display = "none";
+                }
+            }
 
             const tasaInfoEl = document.getElementById("tasaInfo");
             if (tasaInfoEl) tasaInfoEl.innerText = `Tasa actual (${origen} ➔ ${destino}): ${tasa}`;
@@ -312,7 +332,7 @@
             const lblMonto = document.getElementById("lblMonto");
             if (lblMonto) lblMonto.innerText = `Monto a Enviar / Convertir (${simOrigen})`;
 
-            // Equivalencia BCV y Cálculo Inverso en el Recuadro de Resultado
+            // Equivalencia BCV
             const bcvSection = document.getElementById("bcvSection");
             const bcvEquivalenciaEl = document.getElementById("bcvEquivalencia");
 
@@ -332,7 +352,8 @@
 
                         if (montoBCVDeseado > 0) {
                             let bsNecesarios = montoBCVDeseado * tasaBCVActiva;
-                            let origenNecesario = (operacion === "multiplicar") ? (tasa > 0 ? bsNecesarios / tasa : 0) : (bsNecesarios * tasa);
+                            let origenNecesarioCalculado = (operacion === "multiplicar") ? (tasa > 0 ? bsNecesarios / tasa : 0) : (bsNecesarios * tasa);
+                            let origenNecesario = redondearAlSiguienteDiez(origenNecesarioCalculado);
 
                             let marginTop = monto > 0 ? "margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.2);" : "";
                             htmlResult += `<div style="${marginTop} color: #b7e4c7; font-size: 1em;">🎯 Para recibir <strong>${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}</strong> debe enviar:<br><span style="font-size: 1.25em; font-weight: bold; color: #ffffff;">${simOrigen} ${origenNecesario.toFixed(2)}</span> <small style="color: #94a3b8;">(Bs ${bsNecesarios.toFixed(2)})</small></div>`;
@@ -360,20 +381,22 @@
             const operacion = document.getElementById("operacion")?.value || "multiplicar";
             const tasa = obtenerTasaActiva(origen, destino);
 
-            let resultado = (operacion === "dividir") ? (tasa > 0 ? monto / tasa : 0) : (monto * tasa);
+            let resultadoCalculado = (operacion === "dividir") ? (tasa > 0 ? monto / tasa : 0) : (monto * tasa);
+            let resultado = redondearAlSiguienteDiez(resultadoCalculado);
 
             const simOrigen = origen === "Perú" ? "S/" : (origen === "Venezuela" ? "Bs" : (origen === "Colombia" ? "COP $" : "R$"));
             const resFormateado = formatearMoneda(resultado, destino);
+            const montoFormateado = formatearMoneda(monto, origen);
 
             let txt = `💸 *COTIZACIÓN DE REMESA* 💸\n`;
             txt += `-----------------------------------\n`;
 
-            // Si el monto a enviar es mayor a 0, incluir líneas estándar
             if (monto > 0) {
-                txt += `▪ *Enviar:* ${simOrigen} ${monto.toFixed(2)}\n`;
+                txt += `▪ *Enviar:* ${montoFormateado}\n`;
                 txt += `▪ *De:* ${origen} ➔ *A:* ${destino}\n`;
                 txt += `▪ *Tasa:* ${tasa}\n`;
                 txt += `▪ *Recibe:* ${resFormateado}\n`;
+                txt += `👉 *Por ${montoFormateado} recibirás ${resFormateado}*\n`;
             } else {
                 txt += `▪ *De:* ${origen} ➔ *A:* ${destino}\n`;
                 txt += `▪ *Tasa:* ${tasa}\n`;
@@ -393,7 +416,8 @@
 
                 if (tasaBCVActiva > 0 && montoBCVDeseado > 0) {
                     let bsReq = montoBCVDeseado * tasaBCVActiva;
-                    let origReq = (operacion === "multiplicar") ? (tasa > 0 ? bsReq / tasa : 0) : (bsReq * tasa);
+                    let origReqCalculado = (operacion === "multiplicar") ? (tasa > 0 ? bsReq / tasa : 0) : (bsReq * tasa);
+                    let origReq = redondearAlSiguienteDiez(origReqCalculado);
                     txt += `🎯 *Para recibir ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV} debe enviar:* ${simOrigen} ${origReq.toFixed(2)}\n`;
                 }
             }
@@ -428,11 +452,10 @@
             sincronizarGlobales();
             consultarBCV();
 
-            setInterval(consultarBCV, 600000); // Refresco automático cada 10 min
+            setInterval(consultarBCV, 600000);
 
             window.calcular = ejecutarCalculo;
 
-            // Botón de Intercambiar Países (⇆)
             const swapBtn = document.getElementById("swapBtn");
             if (swapBtn) {
                 swapBtn.addEventListener("click", () => {
