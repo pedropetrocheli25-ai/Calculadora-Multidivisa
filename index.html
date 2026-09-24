@@ -52,28 +52,23 @@
 
             <!-- Sección BCV -->
             <div id="bcvSection" class="bcv-section" style="display: none;">
-                <div class="bcv-grid">
+                <div class="bcv-grid" onclick="consultarBCV()" style="cursor: pointer;" title="Toca para actualizar tasa BCV">
                     <div class="bcv-card usd">
-                        <span class="bcv-label">🇺🇸 USD BCV</span>
+                        <span class="bcv-label">🇺🇸 USD BCV 🔄</span>
                         <span class="bcv-value" id="bcvUsd">Cargando...</span>
                     </div>
                     <div class="bcv-card eur">
-                        <span class="bcv-label">🇪🇺 EUR BCV</span>
+                        <span class="bcv-label">🇪🇺 EUR BCV 🔄</span>
                         <span class="bcv-value" id="bcvEur">Cargando...</span>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>Moneda BCV para cálculo</label>
+                <div class="form-group" style="margin-top: 10px;">
+                    <label>Moneda BCV para equivalencia</label>
                     <select id="monedaBCV" class="form-control">
                         <option value="USD">💵 Dólar (USD)</option>
                         <option value="EUR">💶 Euro (EUR)</option>
                     </select>
-                </div>
-
-                <div class="form-group">
-                    <label>🎯 ¿Deseas recibir un monto exacto en USD/EUR? (Opcional)</label>
-                    <input type="number" id="montoBCVDeseado" class="form-control" placeholder="Ej: 10" step="any">
                 </div>
             </div>
 
@@ -97,7 +92,7 @@
             <div class="result-box">
                 <span class="result-title" id="lblResultadoTitle">Resultado</span>
                 <div class="result-amount" id="resultado">Bs 0,00</div>
-                <div id="bcvEquivalencia" class="bcv-equivalencia" style="display: none;"></div>
+                <div id="bcvEquivalencia" style="display: none; margin-top: 8px; font-size: 0.95em; color: #74c69d; font-weight: 600;"></div>
             </div>
 
             <!-- BOTONES DE ACCIÓN RÁPIDA -->
@@ -123,9 +118,7 @@
                 </div>
             </div>
 
-            <!-- ========================================== -->
             <!-- CONFIGURACIÓN DE TASAS LOCALES -->
-            <!-- ========================================== -->
             <button type="button" id="btnAbrirEditor" class="btn-secondary" style="margin-top: 15px; width: 100%; background: #10b981; color: #ffffff; font-weight: bold; padding: 12px; border-radius: 10px; border: none; cursor: pointer;">
                 ⚙️ Configurar Tasas Locales
             </button>
@@ -161,7 +154,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="script.js"></script>
 
-    <!-- Lógica Autónoma para Control e Inyección de Tasas -->
+    <!-- Lógica de la Aplicación -->
     <script>
         const PAISES = ["Perú", "Venezuela", "Colombia", "Brasil"];
         const TASAS_DEFAULT = {
@@ -180,13 +173,48 @@
         };
 
         let tasasLocales = JSON.parse(localStorage.getItem("tasasLocales")) || {};
+        let tasaUsdBCV = 0;
+        let tasaEurBCV = 0;
 
-        // Rellenar valores por defecto si falta alguna clave
         Object.keys(TASAS_DEFAULT).forEach(k => {
             if (!tasasLocales[k] || isNaN(parseFloat(tasasLocales[k])) || parseFloat(tasasLocales[k]) <= 0) {
                 tasasLocales[k] = TASAS_DEFAULT[k];
             }
         });
+
+        async function consultarBCV() {
+            const elUsd = document.getElementById("bcvUsd");
+            const elEur = document.getElementById("bcvEur");
+
+            if (elUsd) elUsd.innerText = "Cargando...";
+            if (elEur) elEur.innerText = "Cargando...";
+
+            try {
+                const resUsd = await fetch("https://ve.dolarapi.com/v1/dolares/oficial");
+                const dataUsd = await resUsd.json();
+                if (dataUsd && dataUsd.promedio) {
+                    tasaUsdBCV = parseFloat(dataUsd.promedio);
+                    if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
+                }
+            } catch(e) {
+                console.error("Error obteniendo USD BCV:", e);
+                if (elUsd) elUsd.innerText = "Error BCV";
+            }
+
+            try {
+                const resEur = await fetch("https://ve.dolarapi.com/v1/euros/oficial");
+                const dataEur = await resEur.json();
+                if (dataEur && dataEur.promedio) {
+                    tasaEurBCV = parseFloat(dataEur.promedio);
+                    if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)}`;
+                }
+            } catch(e) {
+                console.error("Error obteniendo EUR BCV:", e);
+                if (elEur) elEur.innerText = "Error BCV";
+            }
+
+            ejecutarCalculo();
+        }
 
         function guardarTasasEnStorage() {
             localStorage.setItem("tasasLocales", JSON.stringify(tasasLocales));
@@ -231,9 +259,7 @@
                     return parseFloat(tasasLocales[k]);
                 }
             }
-            
-            const claveDef = `${oNorm}-${dNorm}`;
-            return TASAS_DEFAULT[claveDef] || 1;
+            return TASAS_DEFAULT[`${oNorm}-${dNorm}`] || 1;
         }
 
         function formatearMoneda(monto, pais) {
@@ -281,15 +307,71 @@
             }
 
             const bcvSection = document.getElementById("bcvSection");
-            if (bcvSection) {
-                if (origen === "Venezuela" || destino === "Venezuela") {
-                    bcvSection.style.display = "block";
-                } else {
-                    bcvSection.style.display = "none";
+            const bcvEquivalenciaEl = document.getElementById("bcvEquivalencia");
+            const monedaBCV = document.getElementById("monedaBCV")?.value || "USD";
+
+            if (origen === "Venezuela" || destino === "Venezuela") {
+                if (bcvSection) bcvSection.style.display = "block";
+
+                const tasaBCVActiva = (monedaBCV === "EUR") ? tasaEurBCV : tasaUsdBCV;
+                const simBCV = (monedaBCV === "EUR") ? "€" : "$";
+                const nomBCV = (monedaBCV === "EUR") ? "EUR" : "USD";
+
+                if (bcvEquivalenciaEl) {
+                    if (tasaBCVActiva > 0) {
+                        bcvEquivalenciaEl.style.display = "block";
+                        let totalBs = (destino === "Venezuela") ? resultado : monto;
+                        let equivBCV = totalBs > 0 ? (totalBs / tasaBCVActiva) : 0;
+
+                        bcvEquivalenciaEl.innerHTML = `(${simBCV} ${equivBCV.toFixed(2)} ${nomBCV} BCV)`;
+                    } else {
+                        bcvEquivalenciaEl.style.display = "block";
+                        bcvEquivalenciaEl.innerHTML = `(Cargando equivalente BCV...)`;
+                    }
                 }
+            } else {
+                if (bcvSection) bcvSection.style.display = "none";
+                if (bcvEquivalenciaEl) bcvEquivalenciaEl.style.display = "none";
             }
 
             actualizarTablaCruzadaModal();
+        }
+
+        function generarTextoCotizacion() {
+            const origen = document.getElementById("origen")?.value || "Perú";
+            const destino = document.getElementById("destino")?.value || "Venezuela";
+            const monto = parseFloat(document.getElementById("monto")?.value) || 0;
+            const operacion = document.getElementById("operacion")?.value || "multiplicar";
+            const tasa = obtenerTasaActiva(origen, destino);
+
+            let resultado = (operacion === "dividir") ? (tasa > 0 ? monto / tasa : 0) : (monto * tasa);
+
+            const simOrigen = origen === "Perú" ? "S/" : (origen === "Venezuela" ? "Bs" : (origen === "Colombia" ? "COP $" : "R$"));
+            const resFormateado = formatearMoneda(resultado, destino);
+
+            let txt = `💸 *COTIZACIÓN DE REMESA* 💸\n`;
+            txt += `-----------------------------------\n`;
+            txt += `▪ *Enviar:* ${simOrigen} ${monto.toFixed(2)}\n`;
+            txt += `▪ *De:* ${origen} ➔ *A:* ${destino}\n`;
+            txt += `▪ *Tasa:* ${tasa}\n`;
+            txt += `▪ *Recibe:* ${resFormateado}\n`;
+
+            if (origen === "Venezuela" || destino === "Venezuela") {
+                const monedaBCV = document.getElementById("monedaBCV")?.value || "USD";
+                const tasaBCVActiva = (monedaBCV === "EUR") ? tasaEurBCV : tasaUsdBCV;
+                const simBCV = (monedaBCV === "EUR") ? "€" : "$";
+                const nomBCV = (monedaBCV === "EUR") ? "EUR" : "USD";
+
+                let totalBs = (destino === "Venezuela") ? resultado : monto;
+                if (tasaBCVActiva > 0 && totalBs > 0) {
+                    let equiv = (totalBs / tasaBCVActiva).toFixed(2);
+                    txt += `▪ *Equivalente BCV:* ${simBCV} ${equiv} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
+                }
+            }
+
+            txt += `-----------------------------------\n`;
+            txt += `¡Gracias por tu preferencia! 🙌`;
+            return txt;
         }
 
         function actualizarTablaCruzadaModal() {
@@ -315,19 +397,54 @@
 
         document.addEventListener("DOMContentLoaded", () => {
             sincronizarGlobales();
+            consultarBCV();
+
+            setInterval(consultarBCV, 600000); // Refresco automático cada 10 min
+
             window.calcular = ejecutarCalculo;
 
-            const elementosForm = ["origen", "destino", "monto", "operacion", "swapBtn", "monedaBCV", "montoBCVDeseado"];
+            // Funcionalidad del Botón de Intercambiar Países (⇆)
+            const swapBtn = document.getElementById("swapBtn");
+            if (swapBtn) {
+                swapBtn.addEventListener("click", () => {
+                    const origenEl = document.getElementById("origen");
+                    const destinoEl = document.getElementById("destino");
+                    if (origenEl && destinoEl) {
+                        const temp = origenEl.value;
+                        origenEl.value = destinoEl.value;
+                        destinoEl.value = temp;
+                        ejecutarCalculo();
+                    }
+                });
+            }
+
+            const elementosForm = ["origen", "destino", "monto", "operacion", "monedaBCV"];
             elementosForm.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
                     el.addEventListener("input", ejecutarCalculo, true);
                     el.addEventListener("change", ejecutarCalculo, true);
-                    el.addEventListener("click", () => setTimeout(ejecutarCalculo, 50), true);
                 }
             });
 
-            // Control Directo del Botón "Ver tabla de tasas"
+            const btnWhatsapp = document.getElementById("btnWhatsapp");
+            if (btnWhatsapp) {
+                btnWhatsapp.addEventListener("click", () => {
+                    const msg = generarTextoCotizacion();
+                    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+                });
+            }
+
+            const btnCopiar = document.getElementById("btnCopiarTransaccion");
+            if (btnCopiar) {
+                btnCopiar.addEventListener("click", () => {
+                    const msg = generarTextoCotizacion();
+                    navigator.clipboard.writeText(msg).then(() => {
+                        alert("📋 Cotización copiada al portapapeles");
+                    }).catch(err => console.error("Error al copiar: ", err));
+                });
+            }
+
             const verTasasBtn = document.getElementById("verTasasBtn");
             const tablaTasasModal = document.getElementById("tablaTasas");
 
