@@ -81,24 +81,20 @@ function ejecutarCalculo() {
         monedaResultado = "Venezuela";
     }
 
-    let resultadoBCVEnviar = 0;
-    let usandoSoloBCV = false;
-
-    if (monto === 0 && montoBCVDeseado > 0 && tasaBCVActiva > 0) {
-        usandoSoloBCV = true;
-        let bsNecesarios = montoBCVDeseado * tasaBCVActiva;
-        let origenNecesarioCalculado = (operacion === "multiplicar") ? (tasa > 0 ? bsNecesarios / tasa : 0) : (bsNecesarios * tasa);
-        if (origen === "Perú" || destino === "Perú") {
-            resultadoBCVEnviar = redondearAlSiguienteDiez(origenNecesarioCalculado);
-        } else {
-            resultadoBCVEnviar = Math.round(origenNecesarioCalculado * 100) / 100;
-        }
-    }
-
+    // ✅ MODIFICACIÓN: Si el monto está en 0 pero hay un monto BCV deseado,
+    // mostrar cuánto debe enviar en la moneda de origen en lugar de "0,00"
     const resultadoEl = document.getElementById("resultado");
     if (resultadoEl) {
-        if (usandoSoloBCV) {
-            resultadoEl.innerText = formatearMoneda(resultadoBCVEnviar, origen);
+        if (monto === 0 && montoBCVDeseado > 0 && tasaBCVActiva > 0) {
+            let bsNecesarios = montoBCVDeseado * tasaBCVActiva;
+            let origenNecesarioCalculado = (operacion === "multiplicar") ? (tasa > 0 ? bsNecesarios / tasa : 0) : (bsNecesarios * tasa);
+            let origenNecesario = origenNecesarioCalculado;
+            if (origen === "Perú" || destino === "Perú") {
+                origenNecesario = redondearAlSiguienteDiez(origenNecesarioCalculado);
+            } else {
+                origenNecesario = Math.round(origenNecesarioCalculado * 100) / 100;
+            }
+            resultadoEl.innerText = formatearMoneda(origenNecesario, origen);
         } else {
             resultadoEl.innerText = formatearMoneda(resultado, monedaResultado);
         }
@@ -134,7 +130,7 @@ function ejecutarCalculo() {
                     totalBs = (operacion === "multiplicar") ? resultado : monto;
                 }
 
-                if (usandoSoloBCV) {
+                if (monto === 0 && montoBCVDeseado > 0) {
                     totalBs = montoBCVDeseado * tasaBCVActiva;
                 }
 
@@ -196,15 +192,15 @@ function generarTextoCotizacion() {
     const resFormateado = formatearMoneda(resultado, destino);
     const montoFormateado = formatearMoneda(monto, origen);
 
-    let txt = `💸 *COTIZACIÓN DE REMESA* 💸\n`;
+    let txt = `💸 *COTIZACIÓN DE REMESA* \n`;
     txt += `-----------------------------------\n`;
 
     if (monto > 0) {
         if (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar") {
             txt += `➖ *Soles a Recibir:* S/ ${monto.toFixed(2)}\n`;
-            txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+            txt += ` *De:* ${origen} ➔ *A:* ${destino}\n`;
             txt += `➖ *Tasa:* ${tasa}\n`;
-            txt += ` *Debe Enviar:* Bs ${resultado.toLocaleString('es-VE', {minimumFractionDigits: 2})}\n`;
+            txt += `➖ *Debe Enviar:* Bs ${resultado.toLocaleString('es-VE', {minimumFractionDigits: 2})}\n`;
         } else {
             txt += `➖ *Enviar:* ${montoFormateado}\n`;
             txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
@@ -222,13 +218,13 @@ function generarTextoCotizacion() {
         }
         
         txt += `➖ *Para recibir:* ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}\n`;
-        txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+        txt += ` *De:* ${origen} ➔ *A:* ${destino}\n`;
         txt += `➖ *Tasa de cambio:* ${tasa}\n`;
         txt += `➖ *Tasa BCV:* Bs ${tasaBCVActiva.toFixed(2)}\n`;
         txt += ` *Debe Enviar:* ${simOrigen} ${origReq.toFixed(2)}\n`;
         txt += `➖ *Recibe en Bs:* ${formatearMoneda(bsReq, "Venezuela")}\n`;
     } else {
-        txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
+        txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
         txt += `➖ *Tasa:* ${tasa}\n`;
     }
 
@@ -247,7 +243,7 @@ function generarTextoCotizacion() {
     }
 
     txt += `-----------------------------------\n`;
-    txt += `¡Gracias por tu preferencia! `;
+    txt += `¡Gracias por tu preferencia! 🙌`;
     return txt;
 }
 
