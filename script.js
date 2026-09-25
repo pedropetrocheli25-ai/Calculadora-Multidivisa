@@ -1,516 +1,344 @@
-const SHEET_ID = '1JKBGVPGPRCKIQsj1MpEvNLylxx29eCU6iFLGYAJ0qnA'; 
-const API_URL_PRIMARY = `https://opensheet.elk.sh/${SHEET_ID}/Hoja1`;
-const API_URL_FALLBACK = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
+const PAISES = ["Perú", "Venezuela", "Colombia", "Brasil"];
+const TASAS_DEFAULT = {
+    "Perú-Venezuela": 271.10,
+    "Venezuela-Perú": 285.50,
+    "Colombia-Venezuela": 0.010,
+    "Venezuela-Colombia": 100.00,
+    "Brasil-Venezuela": 7.50,
+    "Venezuela-Brasil": 0.133,
+    "Perú-Colombia": 1050.00,
+    "Colombia-Perú": 0.00095,
+    "Perú-Brasil": 1.45,
+    "Brasil-Perú": 0.69,
+    "Colombia-Brasil": 0.0014,
+    "Brasil-Colombia": 720.00
+};
 
-let TASAS_MANUALES = [];
-let TASAS_BCV = { USD: 0, EUR: 0 };
+let tasasLocales = JSON.parse(localStorage.getItem("tasasLocales")) || {};
+let tasaUsdBCV = 0;
+let tasaEurBCV = 0;
 
-// FUNCIÓN DE REDONDEO A TU FAVOR (Al siguiente 0.10)
-// Ejemplos: 91.24 -> 91.30 | 91.41 -> 91.50 | 96.78 -> 96.80
-function redondearAFavor(valor) {
-    if (!valor || isNaN(valor) || valor === 0) return 0;
-    // Se ajusta la precisión para evitar fallos de decimales flotantes en JS
-    const valorAjustado = Math.round(valor * 10000) / 10000;
-    return Math.ceil(valorAjustado * 10) / 10;
+Object.keys(TASAS_DEFAULT).forEach(k => {
+    if (!tasasLocales[k] || isNaN(parseFloat(tasasLocales[k])) || parseFloat(tasasLocales[k]) <= 0) {
+        tasasLocales[k] = TASAS_DEFAULT[k];
+    }
+});
+
+function redondearAlSiguienteDiez(val) {
+    if (isNaN(val) || !isFinite(val) || val <= 0) return 0;
+    return Math.ceil((val + Number.EPSILON) * 10) / 10;
 }
 
-async function obtenerBCV() {
+async function consultarBCV() {
+    const elUsd = document.getElementById("bcvUsd");
+    const elEur = document.getElementById("bcvEur");
+
+    if (elUsd) elUsd.innerText = "Cargando...";
+    if (elEur) elEur.innerText = "Cargando...";
+
     try {
-        const [resUSD, resEUR] = await Promise.all([
-            fetch('https://ve.dolarapi.com/v1/dolares/oficial').then(r => r.json()),
-            fetch('https://ve.dolarapi.com/v1/euros/oficial').then(r => r.json())
-        ]);
-
-        TASAS_BCV.USD = resUSD.promedio || resUSD.monto || 0;
-        TASAS_BCV.EUR = resEUR.promedio || resEUR.monto || 0;
-
-        document.getElementById('bcvUsd').textContent = `${TASAS_BCV.USD.toFixed(2)} Bs`;
-        document.getElementById('bcvEur').textContent = `${TASAS_BCV.EUR.toFixed(2)} Bs`;
-        calcular();
-        generarTarifario();
-    } catch (e) {
-        console.error('Error cargando BCV principal:', e);
+        const res = await fetch("https://ve.dolarapi.com/v1/dolares");
+        const data = await res.json();
+        if (Array.isArray(data)) {
+            const oficial = data.find(item => item.fuente === "oficial" || item.nombre === "Oficial");
+            if (oficial && oficial.promedio) {
+                tasaUsdBCV = parseFloat(oficial.promedio);
+                if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
+            }
+        }
+    } catch(e) {
         try {
-            const res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=bcv').then(r => r.json());
-            if (res && res.monedas) {
-                TASAS_BCV.USD = res.monedas.usd?.promedio || 0;
-                TASAS_BCV.EUR = res.monedas.eur?.promedio || 0;
-                document.getElementById('bcvUsd').textContent = `${TASAS_BCV.USD.toFixed(2)} Bs`;
-                document.getElementById('bcvEur').textContent = `${TASAS_BCV.EUR.toFixed(2)} Bs`;
-                calcular();
-                generarTarifario();
+            const resUsd = await fetch("https://ve.dolarapi.com/v1/dolares/oficial");
+            const dataUsd = await resUsd.json();
+            if (dataUsd && dataUsd.promedio) {
+                tasaUsdBCV = parseFloat(dataUsd.promedio);
+                if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
             }
         } catch(err) {
-            document.getElementById('bcvUsd').textContent = 'Error';
-            document.getElementById('bcvEur').textContent = 'Error';
+            if (elUsd) elUsd.innerText = "Error BCV";
         }
     }
+
+    try {
+        const resEurList = await fetch("https://ve.dolarapi.com/v1/euros");
+        const dataEurList = await resEurList.json();
+        if (Array.isArray(dataEurList)) {
+            const oficialEur = dataEurList.find(item => item.fuente === "oficial" || item.nombre === "Oficial");
+            if (oficialEur && oficialEur.promedio) {
+                tasaEurBCV = parseFloat(oficialEur.promedio);
+                if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)}`;
+            }
+        }
+    } catch(e) {
+        if (elEur) elEur.innerText = "Error BCV";
+    }
+
+    ejecutarCalculo();
 }
 
-// Cargar tasas directamente desde Google API (Respaldo oficial)
-async function obtenerTasasDesdeGoogleDirecto() {
-    const res = await fetch(API_URL_FALLBACK);
-    const text = await res.text();
-    const jsonString = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
-    const data = JSON.parse(jsonString);
+function sincronizarGlobales() {
+    if (typeof window.tasas !== 'object' || window.tasas === null) window.tasas = {};
+    if (typeof window.TASAS !== 'object' || window.TASAS === null) window.TASAS = {};
 
-    const cols = data.table.cols.map(c => c ? (c.label || c.id) : '');
-    const rows = data.table.rows;
-
-    return rows.map(r => {
-        const item = {};
-        if (r.c) {
-            r.c.forEach((cell, idx) => {
-                const key = cols[idx] ? cols[idx].trim() : `col_${idx}`;
-                item[key] = cell ? (cell.v !== null ? cell.v : '') : '';
-            });
-        }
-        return item;
+    Object.keys(tasasLocales).forEach(key => {
+        const val = parseFloat(tasasLocales[key]) || 1;
+        window.tasas[key] = val;
+        window.TASAS[key] = val;
     });
 }
 
-async function obtenerTasas() {
-    const tasaInfo = document.getElementById('tasaInfo');
-    tasaInfo.innerHTML = 'Obteniendo tasas...';
-
-    let datos = null;
-
-    try {
-        const respuesta = await fetch(API_URL_PRIMARY);
-        if (respuesta.ok) {
-            datos = await respuesta.json();
-        }
-    } catch (e) {
-        console.warn('OpenSheet no respondió, intentando conexión directa con Google...', e);
+function obtenerTasaActiva(origen, destino) {
+    if (origen === destino) return 1;
+    const oNorm = origen ? origen.trim() : "Perú";
+    const dNorm = destino ? destino.trim() : "Venezuela";
+    const key = `${oNorm}-${dNorm}`;
+    
+    if (tasasLocales[key] && !isNaN(parseFloat(tasasLocales[key])) && parseFloat(tasasLocales[key]) > 0) {
+        return parseFloat(tasasLocales[key]);
     }
-
-    if (!datos || !Array.isArray(datos) || datos.length === 0) {
-        try {
-            datos = await obtenerTasasDesdeGoogleDirecto();
-        } catch (e) {
-            console.error('Error cargando tasas desde API directa:', e);
-        }
-    }
-
-    if (datos && Array.isArray(datos) && datos.length > 0) {
-        TASAS_MANUALES = datos.map(item => ({
-            origen: item.Origen ? item.Origen.toString().trim() : '',
-            destino: item.Destino ? item.Destino.toString().trim() : '',
-            tasa: item.Tasa ? parseFloat(item.Tasa.toString().replace(',', '.')) : 0,
-            monedaMult: item.MonedaMult ? item.MonedaMult.toString().trim() : '',
-            monedaDiv: item.MonedaDiv ? item.MonedaDiv.toString().trim() : ''
-        })).filter(t => t.origen && t.destino);
-
-        calcular();
-        generarTarifario();
-    } else {
-        tasaInfo.innerHTML = '⚠️ Error al cargar las tasas. Verifica los permisos de tu Google Sheet.';
-    }
+    return TASAS_DEFAULT[key] || 1;
 }
 
-function calcular() {
-    if (TASAS_MANUALES.length === 0) return;
+function formatearMoneda(monto, pais) {
+    if (isNaN(monto) || !isFinite(monto)) monto = 0;
+    let simbolo = "Bs";
+    let decimales = 2;
+    
+    if (pais === "Venezuela") { simbolo = "Bs"; decimales = 2; }
+    else if (pais === "Perú") { simbolo = "S/"; decimales = 2; }
+    else if (pais === "Colombia") { simbolo = "COP $"; decimales = (monto % 1 === 0) ? 0 : 2; }
+    else if (pais === "Brasil") { simbolo = "R$"; decimales = 2; }
+    
+    const partes = monto.toFixed(decimales).split(".");
+    const entero = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    const decimal = partes[1];
+    return decimales > 0 ? `${simbolo} ${entero},${decimal}` : `${simbolo} ${entero}`;
+}
 
-    const origen = document.getElementById('origen').value;
-    const destino = document.getElementById('destino').value;
-    const montoInput = parseFloat(document.getElementById('monto').value) || 0;
-    const operacion = document.getElementById('operacion').value;
+function ejecutarCalculo() {
+    sincronizarGlobales();
 
-    const bcvSection = document.getElementById('bcvSection');
-    const bcvEquivalencia = document.getElementById('bcvEquivalencia');
-    const esVenezuelaInvolucrado = (origen === 'Venezuela' || destino === 'Venezuela');
+    const origen = document.getElementById("origen")?.value || "Perú";
+    const destino = document.getElementById("destino")?.value || "Venezuela";
+    const operacion = document.getElementById("operacion")?.value || "dividir";
+    const monedaBCV = document.getElementById("monedaBCV")?.value || "USD";
+    const montoBCVDeseadoInput = document.getElementById("montoBCVDeseado");
+    const montoInput = document.getElementById("monto");
+    const tasa = obtenerTasaActiva(origen, destino);
 
-    if (esVenezuelaInvolucrado) {
-        bcvSection.style.display = 'block';
-        if (TASAS_BCV.USD === 0) {
-            obtenerBCV();
-        }
-    } else {
-        bcvSection.style.display = 'none';
-        bcvEquivalencia.style.display = 'none';
-    }
+    const tasaBCVActiva = (monedaBCV === "EUR") ? tasaEurBCV : tasaUsdBCV;
+    const simBCV = (monedaBCV === "EUR") ? "€" : "$";
+    const nomBCV = (monedaBCV === "EUR") ? "EUR" : "USD";
 
-    const infoTasa = TASAS_MANUALES.find(t => t.origen === origen && t.destino === destino);
+    let monto = parseFloat(montoInput?.value) || 0;
+    let montoBCVDeseado = parseFloat(montoBCVDeseadoInput?.value) || 0;
 
-    if (!infoTasa) {
-        document.getElementById('tasaInfo').innerHTML = `Sin tasa configurada para <strong>${origen} → ${destino}</strong>`;
-        document.getElementById('resultado').textContent = '---';
-        bcvEquivalencia.style.display = 'none';
-        return;
-    }
+    let resultadoCalculado = (operacion === "dividir") ? (tasa > 0 ? (monto / tasa) : 0) : (monto * tasa);
+    let resultado = redondearAlSiguienteDiez(resultadoCalculado);
 
-    const tasaCruzada = infoTasa.tasa;
-    document.getElementById('tasaInfo').innerHTML = `Tasa ${origen} → ${destino}: <strong>${tasaCruzada.toLocaleString('es-ES')}</strong>`;
+    // Identificar qué moneda se está calculando según la operación
+    let monedaResultado = destino;
+    let simOrigen = "S/";
 
-    const monedaBCV = document.getElementById('monedaBCV').value;
-    const tasaBCV = TASAS_BCV[monedaBCV] || 0;
-    const montoBCVDeseado = parseFloat(document.getElementById('montoBCVDeseado').value) || 0;
-
-    let resultado = 0;
-    let moneda = '';
-
-    if (esVenezuelaInvolucrado && montoBCVDeseado > 0 && tasaBCV > 0) {
-        const bsRequeridos = redondearAFavor(montoBCVDeseado * tasaBCV);
-
-        if (destino === 'Venezuela') {
-            resultado = bsRequeridos;
-            moneda = 'Bs';
-            document.getElementById('lblResultadoTitle').textContent = `Bolívares requeridos (para $${montoBCVDeseado} ${monedaBCV} BCV)`;
-
-            let montoOrigenNecesario = 0;
-            if (operacion === 'multiplicar') {
-                montoOrigenNecesario = bsRequeridos / tasaCruzada;
-            } else {
-                montoOrigenNecesario = bsRequeridos * tasaCruzada;
-            }
-            montoOrigenNecesario = redondearAFavor(montoOrigenNecesario);
-
-            bcvEquivalencia.style.display = 'block';
-            bcvEquivalencia.innerHTML = `💵 Para recibir <strong>$${montoBCVDeseado} ${monedaBCV}</strong> en Venezuela (Tasa BCV: ${tasaBCV.toFixed(2)} Bs), la persona debe enviar: <strong>${montoOrigenNecesario.toFixed(2)} ${origen === 'Perú' ? 'S/' : 'en moneda de ' + origen}</strong>.`;
-        } else if (origen === 'Venezuela') {
-            resultado = bsRequeridos;
-            moneda = 'Bs';
-            document.getElementById('lblResultadoTitle').textContent = `Bolívares a enviar (equivalentes a $${montoBCVDeseado} ${monedaBCV} BCV)`;
-
-            let montoDestinoRecibido = 0;
-            if (operacion === 'multiplicar') {
-                montoDestinoRecibido = bsRequeridos * tasaCruzada;
-            } else {
-                montoDestinoRecibido = bsRequeridos / tasaCruzada;
-            }
-            montoDestinoRecibido = redondearAFavor(montoDestinoRecibido);
-
-            bcvEquivalencia.style.display = 'block';
-            bcvEquivalencia.innerHTML = `💵 $${montoBCVDeseado} ${monedaBCV} equivalen a <strong>${bsRequeridos.toFixed(2)} Bs</strong>. Al cambiarlos a ${destino}, recibirás: <strong>${montoDestinoRecibido.toFixed(2)} ${destino === 'Perú' ? 'S/' : 'en moneda de ' + destino}</strong>.`;
-        }
-    } else {
-        if (operacion === 'multiplicar') {
-            resultado = montoInput * tasaCruzada;
-            moneda = infoTasa.monedaMult;
-            document.getElementById('lblResultadoTitle').textContent = 'Resultado (Monto × Tasa)';
+    if (origen === "Venezuela" && destino === "Perú") {
+        if (operacion === "multiplicar") {
+            // Caso: Quieren enviar Soles a Perú. Ingestionas Soles deseados en "monto" -> resultado es en Bs a enviar
+            monedaResultado = "Venezuela"; // Se muestra en Bs.
+            simOrigen = "S/";
         } else {
-            resultado = tasaCruzada !== 0 ? montoInput / tasaCruzada : 0;
-            moneda = infoTasa.monedaDiv;
-            document.getElementById('lblResultadoTitle').textContent = 'Resultado (Monto ÷ Tasa)';
+            // Caso: Envían Bolívares directamente
+            monedaResultado = "Perú"; // Se muestra en S/.
+            simOrigen = "Bs";
         }
-
-        // Aplica el redondeo a favor en el resultado general
-        resultado = redondearAFavor(resultado);
-
-        if (esVenezuelaInvolucrado && tasaBCV > 0) {
-            bcvEquivalencia.style.display = 'block';
-
-            if (moneda === 'Bs') {
-                const equivalenciaUSD = redondearAFavor(resultado / tasaBCV);
-                bcvEquivalencia.innerHTML = `🏛️ Equivalente BCV: <strong>$${equivalenciaUSD.toFixed(2)} ${monedaBCV}</strong> (Tasa: ${tasaBCV.toFixed(2)} Bs)`;
-            } else if (origen === 'Venezuela') {
-                const equivalenciaUSD = redondearAFavor(montoInput / tasaBCV);
-                bcvEquivalencia.innerHTML = `🏛️ Los ${montoInput} Bs enviados equivalen a <strong>$${equivalenciaUSD.toFixed(2)} ${monedaBCV}</strong> según tasa oficial BCV (${tasaBCV.toFixed(2)} Bs).`;
-            } else {
-                bcvEquivalencia.style.display = 'none';
-            }
-        } else {
-            bcvEquivalencia.style.display = 'none';
-        }
-    }
-
-    const resFormateado = resultado.toLocaleString('es-ES', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
-
-    document.getElementById('resultado').textContent = `${moneda} ${resFormateado}`;
-}
-
-// LÓGICA DEL TARIFARIO DINÁMICO
-function generarTarifario() {
-    const tipo = document.getElementById('tipoTarifario').value;
-    const contenedor = document.getElementById('contenedorTarifario');
-    const header = document.getElementById('headerTarifario');
-    const thead = document.getElementById('theadTarifario');
-    const tbody = document.getElementById('tbodyTarifario');
-
-    if (tipo === 'ninguno') {
-        contenedor.style.display = 'none';
-        return;
-    }
-
-    const infoPeruVen = TASAS_MANUALES.find(t => t.origen === 'Perú' && t.destino === 'Venezuela');
-    const tasaPeruVen = infoPeruVen ? infoPeruVen.tasa : 0;
-    const tasaBCV = TASAS_BCV.USD || 0;
-
-    if (tasaPeruVen === 0 || tasaBCV === 0) {
-        header.innerHTML = '⚠️ Cargando datos de tasas para tarifario...';
-        contenedor.style.display = 'block';
-        thead.innerHTML = '';
-        tbody.innerHTML = '';
-        return;
-    }
-
-    contenedor.style.display = 'block';
-
-    const htmlCuadrosTasas = `
-        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 12px; margin-bottom: 5px;">
-            <div style="background-color: #1b3b22; border: 1.5px solid #2ecc71; border-radius: 8px; padding: 8px 12px; text-align: center; flex: 1;">
-                <div style="font-size: 11px; color: #a3e4d7; font-weight: bold; margin-bottom: 2px;">Tasa BCV</div>
-                <div style="font-size: 14px; color: #2ecc71; font-weight: bold;">${tasaBCV.toFixed(2)} Bs</div>
-            </div>
-            <div style="background-color: #1a2938; border: 1.5px solid #3498db; border-radius: 8px; padding: 8px 12px; text-align: center; flex: 1;">
-                <div style="font-size: 11px; color: #a9cce3; font-weight: bold; margin-bottom: 2px;">Tasa PE-VE</div>
-                <div style="font-size: 14px; color: #3498db; font-weight: bold;">${tasaPeruVen.toLocaleString('es-ES')}</div>
-            </div>
-        </div>
-    `;
-
-    if (tipo === 'soles') {
-        header.innerHTML = `📋 <strong>TARIFARIO SOLES</strong>` + htmlCuadrosTasas;
-        thead.innerHTML = `<tr><th>Enviado</th><th>Recibes (Bs)</th><th>Equivalente</th></tr>`;
-
-        const montosSoles = [10, 20, 30, 50, 100, 150, 200, 300, 500, 1000];
-        let htmlRows = '';
-
-        montosSoles.forEach(monto => {
-            const recibesBs = redondearAFavor(monto * tasaPeruVen);
-            const equivUSD = redondearAFavor(recibesBs / tasaBCV);
-            htmlRows += `<tr>
-                <td>${monto} S/</td>
-                <td>${recibesBs.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                <td>${equivUSD.toFixed(2)}$</td>
-            </tr>`;
-        });
-        tbody.innerHTML = htmlRows;
-
-    } else if (tipo === 'usd') {
-        header.innerHTML = `📋 <strong>TARIFARIO EN USD</strong>` + htmlCuadrosTasas;
-        thead.innerHTML = `<tr><th>Dólares</th><th>Recibes (Bs)</th><th>Equivalente</th></tr>`;
-
-        const montosUSD = [5, 10, 20, 50, 100, 150, 200, 500];
-        let htmlRows = '';
-
-        montosUSD.forEach(monto => {
-            const recibesBs = redondearAFavor(monto * tasaBCV);
-            const equivSoles = redondearAFavor(recibesBs / tasaPeruVen);
-
-            htmlRows += `<tr>
-                <td>${monto}$</td>
-                <td>${recibesBs.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                <td>${equivSoles.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} S/</td>
-            </tr>`;
-        });
-        tbody.innerHTML = htmlRows;
-    }
-}
-
-// ENVIAR TARIFARIO POR WHATSAPP
-function enviarTarifarioWhatsApp() {
-    const tipo = document.getElementById('tipoTarifario').value;
-    const infoPeruVen = TASAS_MANUALES.find(t => t.origen === 'Perú' && t.destino === 'Venezuela');
-    const tasaPeruVen = infoPeruVen ? infoPeruVen.tasa : 0;
-    const tasaBCV = TASAS_BCV.USD || 0;
-
-    if (tipo === 'ninguno' || tasaPeruVen === 0 || tasaBCV === 0) return;
-
-    let mensaje = '';
-
-    if (tipo === 'soles') {
-        mensaje += `📋 *TARIFARIO SOLES*\n`;
-        mensaje += `🟢 Tasa BCV: ${tasaBCV.toFixed(2)} Bs | 🔵 Tasa PE-VE: ${tasaPeruVen.toLocaleString('es-ES')}\n\n`;
-        mensaje += `Enviado | Recibes (Bs) | Equivalente\n`;
-        mensaje += `---------------------------------\n`;
-
-        const montosSoles = [10, 20, 30, 50, 100, 150, 200, 300, 500, 1000];
-        montosSoles.forEach(monto => {
-            const recibesBs = redondearAFavor(monto * tasaPeruVen);
-            const equivUSD = redondearAFavor(recibesBs / tasaBCV);
-            mensaje += `${monto} S/ | ${recibesBs.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} | ${equivUSD.toFixed(2)}$\n`;
-        });
-
-    } else if (tipo === 'usd') {
-        mensaje += `📋 *TARIFARIO EN USD*\n`;
-        mensaje += `🟢 Tasa BCV: ${tasaBCV.toFixed(2)} Bs | 🔵 Tasa PE-VE: ${tasaPeruVen.toLocaleString('es-ES')}\n\n`;
-        mensaje += `Dólares | Recibes (Bs) | Equivalente\n`;
-        mensaje += `---------------------------------\n`;
-
-        const montosUSD = [5, 10, 20, 50, 100, 150, 200, 500];
-        montosUSD.forEach(monto => {
-            const recibesBs = redondearAFavor(monto * tasaBCV);
-            const equivSoles = redondearAFavor(recibesBs / tasaPeruVen);
-            mensaje += `${monto}$ | ${recibesBs.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} | ${equivSoles.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})} S/\n`;
-        });
-    }
-
-    mensaje += `---------------------------------\n`;
-    mensaje += `📱 _Enviado desde Calculadora Multidivisa_`;
-
-    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
-    window.open(url, '_blank');
-}
-
-// ARMAR TEXTO DE COTIZACIÓN
-function obtenerTextoCotizacion() {
-    const origen = document.getElementById('origen').value;
-    const destino = document.getElementById('destino').value;
-    const monto = document.getElementById('monto').value;
-    const resultadoText = document.getElementById('resultado').textContent;
-    const tasaInfoText = document.getElementById('tasaInfo').innerText;
-    const bcvEquiv = document.getElementById('bcvEquivalencia');
-
-    let mensaje = `💸 *COTIZACIÓN DE REMESA*\n`;
-    mensaje += `-----------------------------------\n`;
-    mensaje += `🌎 *Ruta:* ${origen} ➔ ${destino}\n`;
-    mensaje += `💰 *Monto ingresado:* ${monto}\n`;
-    mensaje += `📊 *Tasa:* ${tasaInfoText}\n`;
-    mensaje += `-----------------------------------\n`;
-    mensaje += `🎯 *RESULTADO FINAL:* *${resultadoText}*\n`;
-
-    if (bcvEquiv && bcvEquiv.style.display !== 'none' && bcvEquiv.innerText.trim() !== '') {
-        mensaje += `\n${bcvEquiv.innerText}\n`;
-    }
-
-    mensaje += `-----------------------------------\n`;
-    mensaje += `📱 _Enviado desde Calculadora Multidivisa_`;
-
-    return mensaje;
-}
-
-// COMPARTIR POR WHATSAPP
-function enviarWhatsApp() {
-    const mensaje = obtenerTextoCotizacion();
-    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
-    window.open(url, '_blank');
-}
-
-// COPIAR COTIZACIÓN
-async function copiarReciboTransaccion() {
-    const mensaje = obtenerTextoCotizacion();
-
-    try {
-        await navigator.clipboard.writeText(mensaje);
-
-        const btn = document.getElementById('btnCopiarTransaccion');
-        const textoOriginal = btn.textContent;
-        btn.textContent = '✅ ¡Cálculo Copiado!';
-        btn.style.backgroundColor = '#25D366';
-        btn.style.color = '#fff';
-
-        setTimeout(() => {
-            btn.textContent = textoOriginal;
-            btn.style.backgroundColor = '';
-            btn.style.color = '';
-        }, 2500);
-
-    } catch (err) {
-        console.error('Error al copiar cálculo:', err);
-        alert('No se pudo copiar automáticamente. Inténtalo nuevamente.');
-    }
-}
-
-// GENERAR Y GUARDAR/COMPARTIR EL TARIFARIO COMO IMAGEN
-async function guardarTarifarioImagen() {
-    const contenedor = document.getElementById('contenedorTarifario');
-    const btn = document.getElementById('btnImagenTarifario');
-
-    if (!contenedor || contenedor.style.display === 'none') return;
-
-    const textoOriginal = btn.textContent;
-    btn.textContent = '⏳ Generando imagen...';
-
-    try {
-        const btnWa = document.getElementById('btnWhatsappTarifario');
-        btnWa.style.display = 'none';
-        btn.style.display = 'none';
-
-        const canvas = await html2canvas(contenedor, {
-            scale: 2,
-            backgroundColor: '#1e1e1e',
-            useCORS: true
-        });
-
-        btnWa.style.display = 'block';
-        btn.style.display = 'block';
-
-        canvas.toBlob(async (blob) => {
-            if (!blob) {
-                btn.textContent = textoOriginal;
-                return;
-            }
-
-            const tipo = document.getElementById('tipoTarifario').value;
-            const nombreArchivo = `Tarifario_${tipo.toUpperCase()}.png`;
-
-            if (navigator.canShare && navigator.canShare({ files: [new File([blob], nombreArchivo, { type: 'image/png' })] })) {
-                const file = new File([blob], nombreArchivo, { type: 'image/png' });
-                await navigator.share({
-                    title: 'Tarifario de Remesas',
-                    files: [file]
-                });
-            } else {
-                const link = document.createElement('a');
-                link.download = nombreArchivo;
-                link.href = URL.createObjectURL(blob);
-                link.click();
-            }
-
-            btn.textContent = textoOriginal;
-        }, 'image/png');
-
-    } catch (e) {
-        console.error('Error al generar la imagen:', e);
-        alert('Ocurrió un error al convertir el tarifario a imagen.');
-        btn.textContent = textoOriginal;
-    }
-}
-
-function intercambiarPaises() {
-    const origen = document.getElementById('origen');
-    const destino = document.getElementById('destino');
-    const temp = origen.value;
-    origen.value = destino.value;
-    destino.value = temp;
-    calcular();
-}
-
-function toggleTabla() {
-    const tabla = document.getElementById('tablaTasas');
-    const btn = document.getElementById('verTasasBtn');
-    if (tabla.style.display === 'none') {
-        tabla.style.display = 'block';
-        btn.textContent = 'Ocultar tabla de tasas';
-        cargarTabla();
     } else {
-        tabla.style.display = 'none';
-        btn.textContent = 'Ver tabla de tasas';
+        simOrigen = origen === "Perú" ? "S/" : (origen === "Venezuela" ? "Bs" : (origen === "Colombia" ? "COP $" : "R$"));
     }
+
+    const lblMonto = document.getElementById("lblMonto");
+    if (lblMonto) {
+        if (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar") {
+            lblMonto.innerText = "Soles deseados a recibir en Perú (S/)";
+        } else {
+            lblMonto.innerText = `Monto a Enviar / Convertir (${simOrigen})`;
+        }
+    }
+
+    // Muestra el resultado formateado en la pantalla verde
+    const resultadoEl = document.getElementById("resultado");
+    if (resultadoEl) resultadoEl.innerText = formatearMoneda(resultado, monedaResultado);
+
+    const tasaInfoEl = document.getElementById("tasaInfo");
+    if (tasaInfoEl) tasaInfoEl.innerText = `Tasa actual (${origen} ➔ ${destino}): ${tasa}`;
+
+    // Sección BCV y Equivalencias
+    const bcvSection = document.getElementById("bcvSection");
+    const bcvEquivalenciaEl = document.getElementById("bcvEquivalencia");
+
+    if (origen === "Venezuela" || destino === "Venezuela") {
+        if (bcvSection) bcvSection.style.display = "block";
+
+        if (bcvEquivalenciaEl) {
+            if (tasaBCVActiva > 0) {
+                bcvEquivalenciaEl.style.display = "block";
+                let htmlResult = "";
+
+                // Calcular monto total en Bolívares reales para la equivalencia BCV
+                let totalBs = 0;
+                if (destino === "Venezuela") {
+                    totalBs = resultado;
+                } else if (origen === "Venezuela") {
+                    totalBs = (operacion === "multiplicar") ? resultado : monto;
+                }
+
+                if (totalBs > 0) {
+                    let equivBCV = totalBs / tasaBCVActiva;
+                    htmlResult += `(${simBCV} ${equivBCV.toFixed(2)} ${nomBCV} BCV)`;
+                }
+
+                if (montoBCVDeseado > 0) {
+                    let bsNecesarios = montoBCVDeseado * tasaBCVActiva;
+                    let origenNecesarioCalculado = (operacion === "multiplicar") ? (tasa > 0 ? bsNecesarios / tasa : 0) : (bsNecesarios * tasa);
+                    let origenNecesario = redondearAlSiguienteDiez(origenNecesarioCalculado);
+
+                    let marginTop = totalBs > 0 ? "margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.2);" : "";
+                    htmlResult += `<div style="${marginTop} color: #b7e4c7; font-size: 1em;">🎯 Para recibir <strong>${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}</strong> debe enviar:<br><span style="font-size: 1.25em; font-weight: bold; color: #ffffff;">${simOrigen} ${origenNecesario.toFixed(2)}</span> <small style="color: #94a3b8;">(Bs ${bsNecesarios.toFixed(2)})</small></div>`;
+                }
+
+                bcvEquivalenciaEl.innerHTML = htmlResult;
+            } else {
+                bcvEquivalenciaEl.style.display = "block";
+                bcvEquivalenciaEl.innerHTML = `(Cargando equivalente BCV...)`;
+            }
+        }
+    } else {
+        if (bcvSection) bcvSection.style.display = "none";
+        if (bcvEquivalenciaEl) bcvEquivalenciaEl.style.display = "none";
+    }
+
+    actualizarTablaCruzadaModal();
 }
 
-function cargarTabla() {
-    const content = document.getElementById('tablaTasasContent');
-    content.innerHTML = '';
-    TASAS_MANUALES.forEach(t => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${t.origen}</td><td>${t.destino}</td><td>${t.tasa.toLocaleString('es-ES')}</td>`;
-        content.appendChild(tr);
-    });
+function generarTextoCotizacion() {
+    const origen = document.getElementById("origen")?.value || "Perú";
+    const destino = document.getElementById("destino")?.value || "Venezuela";
+    const monto = parseFloat(document.getElementById("monto")?.value) || 0;
+    const montoBCVDeseado = parseFloat(document.getElementById("montoBCVDeseado")?.value) || 0;
+    const operacion = document.getElementById("operacion")?.value || "dividir";
+    const tasa = obtenerTasaActiva(origen, destino);
+
+    let resultadoCalculado = (operacion === "dividir") ? (tasa > 0 ? monto / tasa : 0) : (monto * tasa);
+    let resultado = redondearAlSiguienteDiez(resultadoCalculado);
+
+    let txt = `💸 *COTIZACIÓN DE REMESA* 💸\n`;
+    txt += `-----------------------------------\n`;
+
+    if (monto > 0) {
+        if (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar") {
+            // Caso de cotización por Soles deseados
+            txt += `➖ *Soles a Recibir:* S/ ${monto.toFixed(2)}\n`;
+            txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+            txt += `➖ *Tasa:* ${tasa}\n`;
+            txt += `➖ *Debe Enviar:* Bs ${resultado.toLocaleString('es-VE', {minimumFractionDigits: 2})}\n`;
+        } else {
+            const resFormateado = formatearMoneda(resultado, destino);
+            const montoFormateado = formatearMoneda(monto, origen);
+            txt += `➖ *Enviar:* ${montoFormateado}\n`;
+            txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+            txt += `➖ *Tasa:* ${tasa}\n`;
+            txt += `➖ *Recibe:* ${resFormateado}\n`;
+        }
+    } else {
+        txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+        txt += `➖ *Tasa:* ${tasa}\n`;
+    }
+
+    if (origen === "Venezuela" || destino === "Venezuela") {
+        const monedaBCV = document.getElementById("monedaBCV")?.value || "USD";
+        const tasaBCVActiva = (monedaBCV === "EUR") ? tasaEurBCV : tasaUsdBCV;
+        const simBCV = (monedaBCV === "EUR") ? "€" : "$";
+        const nomBCV = (monedaBCV === "EUR") ? "EUR" : "USD";
+
+        let totalBs = 0;
+        if (destino === "Venezuela") {
+            totalBs = resultado;
+        } else if (origen === "Venezuela") {
+            totalBs = (operacion === "multiplicar") ? resultado : monto;
+        }
+
+        if (tasaBCVActiva > 0 && totalBs > 0 && monto > 0) {
+            let equiv = (totalBs / tasaBCVActiva).toFixed(2);
+            txt += `➖ *Equivalente BCV:* ${simBCV} ${equiv} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
+        }
+
+        if (tasaBCVActiva > 0 && montoBCVDeseado > 0) {
+            let bsReq = montoBCVDeseado * tasaBCVActiva;
+            let origReqCalculado = (operacion === "multiplicar") ? (tasa > 0 ? bsReq / tasa : 0) : (bsReq * tasa);
+            let origReq = redondearAlSiguienteDiez(origReqCalculado);
+            txt += `🎯 *Para recibir ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV} debe enviar:* ${origReq.toFixed(2)}\n`;
+        }
+    }
+
+    if (monto > 0) {
+        if (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar") {
+            txt += `👉 *Para recibir S/ ${monto.toFixed(2)} debes enviar Bs ${resultado.toLocaleString('es-VE', {minimumFractionDigits: 2})}*\n`;
+        } else {
+            const resFormateado = formatearMoneda(resultado, destino);
+            const montoFormateado = formatearMoneda(monto, origen);
+            txt += `👉 *Por ${montoFormateado} recibirás ${resFormateado}*\n`;
+        }
+    }
+
+    txt += `-----------------------------------\n`;
+    txt += `¡Gracias por tu preferencia! 🙌`;
+    return txt;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    const inputs = ['origen', 'destino', 'monto', 'operacion', 'monedaBCV', 'montoBCVDeseado'];
-    inputs.forEach(id => {
+document.addEventListener("DOMContentLoaded", () => {
+    sincronizarGlobales();
+    consultarBCV();
+
+    setInterval(consultarBCV, 600000);
+
+    const swapBtn = document.getElementById("swapBtn");
+    if (swapBtn) {
+        swapBtn.addEventListener("click", () => {
+            const origenEl = document.getElementById("origen");
+            const destinoEl = document.getElementById("destino");
+            if (origenEl && destinoEl) {
+                const temp = origenEl.value;
+                origenEl.value = destinoEl.value;
+                destinoEl.value = temp;
+                ejecutarCalculo();
+            }
+        });
+    }
+
+    const elementosNormales = ["origen", "destino", "monto", "operacion", "monedaBCV", "montoBCVDeseado"];
+    elementosNormales.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
-            el.addEventListener('change', calcular);
-            el.addEventListener('input', calcular);
+            el.addEventListener("input", ejecutarCalculo, true);
+            el.addEventListener("change", ejecutarCalculo, true);
         }
     });
 
-    document.getElementById('tipoTarifario').addEventListener('change', generarTarifario);
-    document.getElementById('swapBtn').addEventListener('click', intercambiarPaises);
-    document.getElementById('verTasasBtn').addEventListener('click', toggleTabla);
-    document.getElementById('btnWhatsapp').addEventListener('click', enviarWhatsApp);
-    document.getElementById('btnWhatsappTarifario').addEventListener('click', enviarTarifarioWhatsApp);
+    const btnWhatsapp = document.getElementById("btnWhatsapp");
+    if (btnWhatsapp) {
+        btnWhatsapp.addEventListener("click", () => {
+            const msg = generarTextoCotizacion();
+            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+        });
+    }
 
-    document.getElementById('btnCopiarTransaccion').addEventListener('click', copiarReciboTransaccion);
-    document.getElementById('btnImagenTarifario').addEventListener('click', guardarTarifarioImagen);
+    const btnCopiar = document.getElementById("btnCopiarTransaccion");
+    if (btnCopiar) {
+        btnCopiar.addEventListener("click", () => {
+            const msg = generarTextoCotizacion();
+            navigator.clipboard.writeText(msg).then(() => {
+                alert("📋 Cotización copiada al portapapeles");
+            });
+        });
+    }
 
-    obtenerTasas();
+    ejecutarCalculo();
 });
