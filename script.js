@@ -81,11 +81,31 @@ function ejecutarCalculo() {
         monedaResultado = "Venezuela";
     }
 
+    let resultadoBCVEnviar = 0;
+    let usandoSoloBCV = false;
+
+    if (monto === 0 && montoBCVDeseado > 0 && tasaBCVActiva > 0) {
+        usandoSoloBCV = true;
+        let bsNecesarios = montoBCVDeseado * tasaBCVActiva;
+        let origenNecesarioCalculado = (operacion === "multiplicar") ? (tasa > 0 ? bsNecesarios / tasa : 0) : (bsNecesarios * tasa);
+        if (origen === "Perú" || destino === "Perú") {
+            resultadoBCVEnviar = redondearAlSiguienteDiez(origenNecesarioCalculado);
+        } else {
+            resultadoBCVEnviar = Math.round(origenNecesarioCalculado * 100) / 100;
+        }
+    }
+
     const resultadoEl = document.getElementById("resultado");
-    if (resultadoEl) resultadoEl.innerText = formatearMoneda(resultado, monedaResultado);
+    if (resultadoEl) {
+        if (usandoSoloBCV) {
+            resultadoEl.innerText = formatearMoneda(resultadoBCVEnviar, origen);
+        } else {
+            resultadoEl.innerText = formatearMoneda(resultado, monedaResultado);
+        }
+    }
 
     const tasaInfoEl = document.getElementById("tasaInfo");
-    if (tasaInfoEl) tasaInfoEl.innerText = `Tasa actual (${origen}  ${destino}): ${tasa}`;
+    if (tasaInfoEl) tasaInfoEl.innerText = `Tasa actual (${origen} ➔ ${destino}): ${tasa}`;
 
     const lblMonto = document.getElementById("lblMonto");
     if (lblMonto) {
@@ -114,7 +134,11 @@ function ejecutarCalculo() {
                     totalBs = (operacion === "multiplicar") ? resultado : monto;
                 }
 
-                if (totalBs > 0) {
+                if (usandoSoloBCV) {
+                    totalBs = montoBCVDeseado * tasaBCVActiva;
+                }
+
+                if (totalBs > 0 && monto > 0) {
                     let equivBCV = totalBs / tasaBCVActiva;
                     let horaActual = ultimaActualizacionBCV ? ` · Actualizado: ${ultimaActualizacionBCV}` : "";
                     htmlResult += `(${simBCV} ${equivBCV.toFixed(2)} ${nomBCV} BCV${horaActual})`;
@@ -130,7 +154,7 @@ function ejecutarCalculo() {
                         origenNecesario = Math.round(origenNecesarioCalculado * 100) / 100;
                     }
 
-                    let marginTop = totalBs > 0 ? "margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.2);" : "";
+                    let marginTop = (totalBs > 0 && monto > 0) ? "margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.2);" : "";
                     htmlResult += `<div style="${marginTop} color: #b7e4c7; font-size: 1em;">🎯 Para recibir <strong>${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}</strong> debe enviar:<br><span style="font-size: 1.25em; font-weight: bold; color: #ffffff;">${simOrigen} ${origenNecesario.toFixed(2)}</span> <small style="color: #94a3b8;">(Bs ${bsNecesarios.toFixed(2)})</small></div>`;
                 }
 
@@ -155,6 +179,10 @@ function generarTextoCotizacion() {
     const montoBCVDeseado = parseFloat(document.getElementById("montoBCVDeseado")?.value) || 0;
     const operacion = document.getElementById("operacion")?.value || "dividir";
     const tasa = obtenerTasaActiva(origen, destino);
+    const monedaBCV = document.getElementById("monedaBCV")?.value || "USD";
+    const tasaBCVActiva = (monedaBCV === "EUR") ? tasaEurBCV : tasaUsdBCV;
+    const simBCV = (monedaBCV === "EUR") ? "€" : "$";
+    const nomBCV = (monedaBCV === "EUR") ? "EUR" : "USD";
 
     let resultadoCalculado = (operacion === "dividir") ? (tasa > 0 ? monto / tasa : 0) : (monto * tasa);
     let resultado = resultadoCalculado;
@@ -176,24 +204,35 @@ function generarTextoCotizacion() {
             txt += `➖ *Soles a Recibir:* S/ ${monto.toFixed(2)}\n`;
             txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
             txt += `➖ *Tasa:* ${tasa}\n`;
-            txt += `➖ *Debe Enviar:* Bs ${resultado.toLocaleString('es-VE', {minimumFractionDigits: 2})}\n`;
+            txt += ` *Debe Enviar:* Bs ${resultado.toLocaleString('es-VE', {minimumFractionDigits: 2})}\n`;
         } else {
             txt += `➖ *Enviar:* ${montoFormateado}\n`;
             txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
             txt += `➖ *Tasa:* ${tasa}\n`;
             txt += `➖ *Recibe:* ${resFormateado}\n`;
         }
-    } else {
+    } else if (montoBCVDeseado > 0) {
+        const bsReq = montoBCVDeseado * tasaBCVActiva;
+        let origReqCalculado = (operacion === "multiplicar") ? (tasa > 0 ? bsReq / tasa : 0) : (bsReq * tasa);
+        let origReq = origReqCalculado;
+        if (origen === "Perú" || destino === "Perú") {
+            origReq = redondearAlSiguienteDiez(origReqCalculado);
+        } else {
+            origReq = Math.round(origReqCalculado * 100) / 100;
+        }
+        
+        txt += `➖ *Para recibir:* ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}\n`;
         txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+        txt += `➖ *Tasa de cambio:* ${tasa}\n`;
+        txt += `➖ *Tasa BCV:* Bs ${tasaBCVActiva.toFixed(2)}\n`;
+        txt += ` *Debe Enviar:* ${simOrigen} ${origReq.toFixed(2)}\n`;
+        txt += `➖ *Recibe en Bs:* ${formatearMoneda(bsReq, "Venezuela")}\n`;
+    } else {
+        txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
         txt += `➖ *Tasa:* ${tasa}\n`;
     }
 
     if (origen === "Venezuela" || destino === "Venezuela") {
-        const monedaBCV = document.getElementById("monedaBCV")?.value || "USD";
-        const tasaBCVActiva = (monedaBCV === "EUR") ? tasaEurBCV : tasaUsdBCV;
-        const simBCV = (monedaBCV === "EUR") ? "€" : "$";
-        const nomBCV = (monedaBCV === "EUR") ? "EUR" : "USD";
-
         let totalBs = 0;
         if (destino === "Venezuela") {
             totalBs = resultado;
@@ -205,18 +244,6 @@ function generarTextoCotizacion() {
             let equiv = (totalBs / tasaBCVActiva).toFixed(2);
             txt += `➖ *Equivalente BCV:* ${simBCV} ${equiv} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
         }
-
-        if (tasaBCVActiva > 0 && montoBCVDeseado > 0) {
-            let bsReq = montoBCVDeseado * tasaBCVActiva;
-            let origReqCalculado = (operacion === "multiplicar") ? (tasa > 0 ? bsReq / tasa : 0) : (bsReq * tasa);
-            let origReq = origReqCalculado;
-            if (origen === "Perú" || destino === "Perú") {
-                origReq = redondearAlSiguienteDiez(origReqCalculado);
-            } else {
-                origReq = Math.round(origReqCalculado * 100) / 100;
-            }
-            txt += ` *Para recibir ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV} debe enviar:* ${simOrigen} ${origReq.toFixed(2)}\n`;
-        }
     }
 
     txt += `-----------------------------------\n`;
@@ -224,7 +251,6 @@ function generarTextoCotizacion() {
     return txt;
 }
 
-// 🔄 SISTEMA MULTI-API CON FALLBACK EN CASCADA
 async function consultarBCV() {
     const elUsd = document.getElementById("bcvUsd");
     const elEur = document.getElementById("bcvEur");
@@ -235,7 +261,6 @@ async function consultarBCV() {
     let usdObtenido = false;
     let eurObtenido = false;
 
-    // === API 1: pydolarve.org (endpoint alternativo más estable) ===
     try {
         const [resUsd, resEur] = await Promise.all([
             fetch("https://pydolarve.org/api/v1/dollar?page=bcv"),
@@ -263,7 +288,6 @@ async function consultarBCV() {
         console.log("API 1 falló, intentando API 2...");
     }
 
-    // === API 2: pydolarve.org (endpoint directo) ===
     if (!usdObtenido || !eurObtenido) {
         try {
             if (!usdObtenido) {
@@ -294,7 +318,6 @@ async function consultarBCV() {
         }
     }
 
-    // === API 3: dolarapi.com (último recurso, se actualiza al día siguiente) ===
     if (!usdObtenido || !eurObtenido) {
         try {
             if (!usdObtenido) {
@@ -327,19 +350,15 @@ async function consultarBCV() {
         }
     }
 
-    // Guardar timestamp de última actualización exitosa
     if (usdObtenido || eurObtenido) {
         const ahora = new Date();
         ultimaActualizacionBCV = ahora.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
-        
-        // Guardar en localStorage para persistencia
         localStorage.setItem("cacheBCV", JSON.stringify({
             usd: tasaUsdBCV,
             eur: tasaEurBCV,
             timestamp: ahora.toISOString()
         }));
     } else {
-        // Si todo falló, usar caché local si existe
         const cache = JSON.parse(localStorage.getItem("cacheBCV") || "{}");
         if (cache.usd && cache.eur) {
             tasaUsdBCV = cache.usd;
@@ -376,11 +395,10 @@ function actualizarTablaCruzadaModal() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Cargar caché al iniciar si existe
     const cache = JSON.parse(localStorage.getItem("cacheBCV") || "{}");
     if (cache.usd && cache.eur && cache.timestamp) {
         const cacheAge = Date.now() - new Date(cache.timestamp).getTime();
-        if (cacheAge < 3600000) { // Menos de 1 hora
+        if (cacheAge < 3600000) {
             tasaUsdBCV = cache.usd;
             tasaEurBCV = cache.eur;
             const cacheDate = new Date(cache.timestamp);
@@ -389,7 +407,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     consultarBCV();
-    // Actualizar cada 3 minutos para capturar cambios del BCV rápidamente
     setInterval(consultarBCV, 180000);
 
     const swapBtn = document.getElementById("swapBtn");
@@ -428,7 +445,7 @@ document.addEventListener("DOMContentLoaded", () => {
         btnCopiar.addEventListener("click", () => {
             const msg = generarTextoCotizacion();
             navigator.clipboard.writeText(msg).then(() => {
-                alert(" Cotización copiada al portapapeles");
+                alert("📋 Cotización copiada al portapapeles");
             });
         });
     }
