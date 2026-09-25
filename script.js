@@ -1,6 +1,5 @@
 const PAISES = ["Perú", "Venezuela", "Colombia", "Brasil"];
 
-// Tasas base (se normalizan a minúsculas y sin acentos internamente para evitar errores)
 const TASAS_DEFAULT = {
     "peru-venezuela": 271.10, "venezuela-peru": 285.50,
     "colombia-venezuela": 0.010, "venezuela-colombia": 100.00,
@@ -14,187 +13,137 @@ let tasasLocales = JSON.parse(localStorage.getItem("tasasLocales")) || {};
 let tasaUsdBCV = 0;
 let tasaEurBCV = 0;
 
-// Inicializar tasas faltantes en el almacenamiento local
 Object.keys(TASAS_DEFAULT).forEach(k => {
     if (!tasasLocales[k] || isNaN(parseFloat(tasasLocales[k])) || parseFloat(tasasLocales[k]) <= 0) {
         tasasLocales[k] = TASAS_DEFAULT[k];
     }
 });
 
-// 1. Normalización robusta: convierte "Perú" en "peru" para que nunca falle la búsqueda
 const normalizar = (texto) => texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 const obtenerClave = (origen, destino) => `${normalizar(origen)}-${normalizar(destino)}`;
 
-// 2. REDONDEO INTELIGENTE: Solo aplica el redondeo al alza (.10, .20) si Perú está involucrado.
-// Si es Colombia o Brasil, usa redondeo matemático normal a 2 decimales.
-function redondearSegunPais(val, paisInvolucrado) {
+// Redondeo al siguiente décimo SOLO para operaciones con Perú
+function redondearAlSiguienteDiez(val) {
     if (isNaN(val) || !isFinite(val) || val <= 0) return 0;
-    
-    if (paisInvolucrado === "Perú") {
-        // Redondeo hacia arriba al siguiente décimo (ej: 30.06 -> 30.10)
-        return Math.ceil(Number(val.toFixed(2)) * 10) / 10;
-    }
-    // Para otros países, redondeo estándar a 2 decimales
-    return Math.round(val * 100) / 100;
+    return Math.ceil(Number(val.toFixed(2)) * 10) / 10;
 }
 
-// 3. Formateo de moneda profesional y automático
 function formatearMoneda(monto, pais) {
     if (isNaN(monto) || !isFinite(monto)) monto = 0;
-    
-    const configuraciones = {
-        "Venezuela": { locale: "es-VE", symbol: "Bs" },
-        "Perú": { locale: "es-PE", symbol: "S/" },
-        "Colombia": { locale: "es-CO", symbol: "COP $" },
-        "Brasil": { locale: "pt-BR", symbol: "R$" }
-    };
-    
-    const config = configuraciones[pais] || configuraciones["Venezuela"];
-    const esColombiaEntero = pais === "Colombia" && monto % 1 === 0;
-    
-    const formatter = new Intl.NumberFormat(config.locale, {
-        minimumFractionDigits: esColombiaEntero ? 0 : 2,
-        maximumFractionDigits: 2
-    });
-    
-    const partes = formatter.formatToParts(monto);
-    const entero = partes.find(p => p.type === "integer")?.value || "0";
-    const decimal = partes.find(p => p.type === "fraction")?.value || "00";
-    
-    return `${config.symbol} ${entero},${decimal}`;
+    let simbolo = "Bs";
+    let decimales = 2;
+
+    if (pais === "Venezuela") { simbolo = "Bs"; decimales = 2; }
+    else if (pais === "Perú") { simbolo = "S/"; decimales = 2; }
+    else if (pais === "Colombia") { simbolo = "COP $"; decimales = (monto % 1 === 0) ? 0 : 2; }
+    else if (pais === "Brasil") { simbolo = "R$"; decimales = 2; }
+
+    const partes = monto.toFixed(decimales).split(".");
+    const entero = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    const decimal = partes[1];
+    return decimales > 0 ? `${simbolo} ${entero},${decimal}` : `${simbolo} ${entero}`;
 }
 
-// 4. Obtención de tasa a prueba de fallos (usa la clave normalizada)
 function obtenerTasaActiva(origen, destino) {
     if (normalizar(origen) === normalizar(destino)) return 1;
     const clave = obtenerClave(origen, destino);
     return parseFloat(tasasLocales[clave]) || parseFloat(TASAS_DEFAULT[clave]) || 1;
 }
 
-// 5. CÁLCULO CENTRALIZADO: Garantiza que la pantalla y el WhatsApp muestren EXACTAMENTE lo mismo
-function calcularRemesa(origen, destino, montoInput, operacion) {
-    const tasa = obtenerTasaActiva(origen, destino);
-    let montoOrigen = 0, montoDestino = 0;
-
-    if (operacion === "multiplicar") {
-        montoOrigen = parseFloat(montoInput) || 0;
-        // Aplicamos redondeo especial si Perú es el destino o el origen
-        const paisParaRedondeo = (origen === "Perú" || destino === "Perú") ? "Perú" : "Otro";
-        montoDestino = redondearSegunPais(montoOrigen * tasa, paisParaRedondeo);
-    } else {
-        montoDestino = parseFloat(montoInput) || 0;
-        const paisParaRedondeo = (origen === "Perú" || destino === "Perú") ? "Perú" : "Otro";
-        montoOrigen = redondearSegunPais(tasa > 0 ? montoDestino / tasa : 0, paisParaRedondeo);
-    }
-
-    return { tasa, montoOrigen, montoDestino };
-}
-
-// 6. API del BCV con Caché (ahorra datos y evita errores si se va el internet)
-async function consultarBCV() {
-    const elUsd = document.getElementById("bcvUsd");
-    const elEur = document.getElementById("bcvEur");
-    const ahora = Date.now();
-    const cache = JSON.parse(localStorage.getItem("cacheBCV") || "{}");
-
-    // Si tenemos datos de hace menos de 10 minutos, usamos el caché
-    if (cache.timestamp && (ahora - cache.timestamp < 600000) && cache.usd && cache.eur) {
-        tasaUsdBCV = cache.usd;
-        tasaEurBCV = cache.eur;
-        if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
-        if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)}`;
-        ejecutarCalculo();
-        return;
-    }
-
-    if (elUsd) elUsd.innerText = "Cargando...";
-    if (elEur) elEur.innerText = "Cargando...";
-
-    try {
-        const [resUsd, resEur] = await Promise.all([
-            fetch("https://ve.dolarapi.com/v1/dolares/oficial"),
-            fetch("https://ve.dolarapi.com/v1/euros/oficial")
-        ]);
-        
-        const dataUsd = await resUsd.json();
-        const dataEur = await resEur.json();
-
-        if (dataUsd?.promedio) tasaUsdBCV = parseFloat(dataUsd.promedio);
-        if (dataEur?.promedio) tasaEurBCV = parseFloat(dataEur.promedio);
-
-        localStorage.setItem("cacheBCV", JSON.stringify({ usd: tasaUsdBCV, eur: tasaEurBCV, timestamp: ahora }));
-
-        if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
-        if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)}`;
-    } catch (err) {
-        console.error("Error BCV:", err);
-        if (elUsd) elUsd.innerText = "Error";
-        if (elEur) elEur.innerText = "Error";
-    } finally {
-        ejecutarCalculo();
-    }
-}
-
-// 7. Actualizar la Interfaz de Usuario
+// LÓGICA MATEMÁTICA ORIGINAL (verificada)
 function ejecutarCalculo() {
     const origen = document.getElementById("origen")?.value || "Perú";
     const destino = document.getElementById("destino")?.value || "Venezuela";
     const operacion = document.getElementById("operacion")?.value || "dividir";
-    const montoInput = parseFloat(document.getElementById("monto")?.value) || 0;
     const monedaBCV = document.getElementById("monedaBCV")?.value || "USD";
-    const montoBCVDeseado = parseFloat(document.getElementById("montoBCVDeseado")?.value) || 0;
+    const montoBCVDeseadoInput = document.getElementById("montoBCVDeseado");
+    const montoInput = document.getElementById("monto");
+    const tasa = obtenerTasaActiva(origen, destino);
 
-    const { tasa, montoOrigen, montoDestino } = calcularRemesa(origen, destino, montoInput, operacion);
-
-    // Actualizar etiquetas
-    const lblMonto = document.getElementById("lblMonto");
+    const tasaBCVActiva = (monedaBCV === "EUR") ? tasaEurBCV : tasaUsdBCV;
+    const simBCV = (monedaBCV === "EUR") ? "€" : "$";
+    const nomBCV = (monedaBCV === "EUR") ? "EUR" : "USD";
     const simOrigen = origen === "Perú" ? "S/" : (origen === "Venezuela" ? "Bs" : (origen === "Colombia" ? "COP $" : "R$"));
-    
-    if (lblMonto) {
-        if (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar") {
-            lblMonto.innerText = "Soles deseados a recibir en Perú (S/)";
-        } else {
-            lblMonto.innerText = `Monto a ${operacion === "multiplicar" ? "Enviar" : "Que Reciban"} (${simOrigen})`;
-        }
+
+    let monto = parseFloat(montoInput?.value) || 0;
+    let montoBCVDeseado = parseFloat(montoBCVDeseadoInput?.value) || 0;
+
+    // FÓRMULA ORIGINAL: multiplicar = monto × tasa, dividir = monto ÷ tasa
+    let resultadoCalculado = (operacion === "dividir") ? (tasa > 0 ? (monto / tasa) : 0) : (monto * tasa);
+
+    // Redondeo al siguiente décimo SOLO si Perú está involucrado
+    let resultado = resultadoCalculado;
+    if (origen === "Perú" || destino === "Perú") {
+        resultado = redondearAlSiguienteDiez(resultadoCalculado);
+    } else {
+        resultado = Math.round(resultadoCalculado * 100) / 100;
+    }
+
+    let monedaResultado = destino;
+
+    // Caso especial: Venezuela → Perú con multiplicar (el usuario ingresa Soles deseados)
+    if (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar") {
+        monedaResultado = "Venezuela"; // El resultado se muestra en Bs (cuántos Bs debe enviar)
     }
 
     const resultadoEl = document.getElementById("resultado");
-    if (resultadoEl) resultadoEl.innerText = formatearMoneda(montoDestino, destino);
+    if (resultadoEl) resultadoEl.innerText = formatearMoneda(resultado, monedaResultado);
 
     const tasaInfoEl = document.getElementById("tasaInfo");
     if (tasaInfoEl) tasaInfoEl.innerText = `Tasa actual (${origen} ➔ ${destino}): ${tasa}`;
 
-    // Lógica de Equivalencia BCV
+    const lblMonto = document.getElementById("lblMonto");
+    if (lblMonto) {
+        if (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar") {
+            lblMonto.innerText = "Soles deseados a recibir en Perú (S/)";
+        } else {
+            lblMonto.innerText = `Monto a Enviar / Convertir (${simOrigen})`;
+        }
+    }
+
+    // Sección BCV
     const bcvSection = document.getElementById("bcvSection");
     const bcvEquivalenciaEl = document.getElementById("bcvEquivalencia");
 
     if (origen === "Venezuela" || destino === "Venezuela") {
         if (bcvSection) bcvSection.style.display = "block";
 
-        if (bcvEquivalenciaEl && tasaUsdBCV > 0 && tasaEurBCV > 0) {
-            bcvEquivalenciaEl.style.display = "block";
-            const tasaBCVActiva = (monedaBCV === "EUR") ? tasaEurBCV : tasaUsdBCV;
-            const simBCV = (monedaBCV === "EUR") ? "€" : "$";
-            const nomBCV = (monedaBCV === "EUR") ? "EUR" : "USD";
+        if (bcvEquivalenciaEl) {
+            if (tasaBCVActiva > 0) {
+                bcvEquivalenciaEl.style.display = "block";
+                let htmlResult = "";
 
-            let totalBs = (destino === "Venezuela") ? montoDestino : (operacion === "multiplicar" ? montoDestino : montoOrigen);
-            let htmlResult = "";
+                let totalBs = 0;
+                if (destino === "Venezuela") {
+                    totalBs = resultado;
+                } else if (origen === "Venezuela") {
+                    totalBs = (operacion === "multiplicar") ? resultado : monto;
+                }
 
-            if (totalBs > 0 && montoOrigen > 0) {
-                let equivBCV = totalBs / tasaBCVActiva;
-                htmlResult += `(${simBCV} ${equivBCV.toFixed(2)} ${nomBCV} BCV)`;
+                if (totalBs > 0) {
+                    let equivBCV = totalBs / tasaBCVActiva;
+                    htmlResult += `(${simBCV} ${equivBCV.toFixed(2)} ${nomBCV} BCV)`;
+                }
+
+                if (montoBCVDeseado > 0) {
+                    let bsNecesarios = montoBCVDeseado * tasaBCVActiva;
+                    let origenNecesarioCalculado = (operacion === "multiplicar") ? (tasa > 0 ? bsNecesarios / tasa : 0) : (bsNecesarios * tasa);
+                    let origenNecesario = origenNecesarioCalculado;
+                    if (origen === "Perú" || destino === "Perú") {
+                        origenNecesario = redondearAlSiguienteDiez(origenNecesarioCalculado);
+                    } else {
+                        origenNecesario = Math.round(origenNecesarioCalculado * 100) / 100;
+                    }
+
+                    let marginTop = totalBs > 0 ? "margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.2);" : "";
+                    htmlResult += `<div style="${marginTop} color: #b7e4c7; font-size: 1em;">🎯 Para recibir <strong>${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}</strong> debe enviar:<br><span style="font-size: 1.25em; font-weight: bold; color: #ffffff;">${simOrigen} ${origenNecesario.toFixed(2)}</span> <small style="color: #94a3b8;">(Bs ${bsNecesarios.toFixed(2)})</small></div>`;
+                }
+
+                bcvEquivalenciaEl.innerHTML = htmlResult;
+            } else {
+                bcvEquivalenciaEl.style.display = "block";
+                bcvEquivalenciaEl.innerHTML = `(Cargando equivalente BCV...)`;
             }
-
-            if (montoBCVDeseado > 0) {
-                let bsNecesarios = montoBCVDeseado * tasaBCVActiva;
-                let origenNecesarioCalculado = (operacion === "multiplicar") ? (tasa > 0 ? bsNecesarios / tasa : 0) : (bsNecesarios * tasa);
-                const paisParaRedondeo = (origen === "Perú" || destino === "Perú") ? "Perú" : "Otro";
-                let origenNecesario = redondearSegunPais(origenNecesarioCalculado, paisParaRedondeo);
-
-                let marginTop = totalBs > 0 ? "margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.2);" : "";
-                htmlResult += `<div style="${marginTop} color: #b7e4c7; font-size: 1em;">🎯 Para recibir <strong>${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}</strong> debe enviar:<br><span style="font-size: 1.25em; font-weight: bold; color: #ffffff;">${simOrigen} ${origenNecesario.toFixed(2)}</span> <small style="color: #94a3b8;">(Bs ${bsNecesarios.toFixed(2)})</small></div>`;
-            }
-            bcvEquivalenciaEl.innerHTML = htmlResult;
         }
     } else {
         if (bcvSection) bcvSection.style.display = "none";
@@ -204,66 +153,136 @@ function ejecutarCalculo() {
     actualizarTablaCruzadaModal();
 }
 
-// 8. MENSAJE DE WHATSAPP MEJORADO Y PROFESIONAL
+// MENSAJE DE WHATSAPP CON LÓGICA ORIGINAL Y "GRACIAS POR TU PREFERENCIA"
 function generarTextoCotizacion() {
     const origen = document.getElementById("origen")?.value || "Perú";
     const destino = document.getElementById("destino")?.value || "Venezuela";
-    const operacion = document.getElementById("operacion")?.value || "dividir";
-    const montoInput = parseFloat(document.getElementById("monto")?.value) || 0;
-    const monedaBCV = document.getElementById("monedaBCV")?.value || "USD";
+    const monto = parseFloat(document.getElementById("monto")?.value) || 0;
     const montoBCVDeseado = parseFloat(document.getElementById("montoBCVDeseado")?.value) || 0;
+    const operacion = document.getElementById("operacion")?.value || "dividir";
+    const tasa = obtenerTasaActiva(origen, destino);
 
-    const { tasa, montoOrigen, montoDestino } = calcularRemesa(origen, destino, montoInput, operacion);
-    const esCasoEspecial = (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar");
-    const simOrigen = origen === "Perú" ? "S/" : (origen === "Venezuela" ? "Bs" : (origen === "Colombia" ? "COP $" : "R$"));
-
-    // Fecha actual formateada
-    const fecha = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit' });
-
-    let txt = `💸 *COTIZACIÓN DE REMESA* 💸\n`;
-    txt += `📅 *Fecha:* ${fecha}\n`;
-    txt += `-----------------------------------\n`;
-    
-    if (montoOrigen > 0) {
-        if (esCasoEspecial) {
-            txt += `➖ *Soles a Recibir:* S/ ${montoOrigen.toFixed(2)}\n`;
-            txt += `➖ *Debes Enviar:* ${formatearMoneda(montoDestino, "Venezuela")}\n`;
-        } else {
-            txt += `➖ *Envías:* ${formatearMoneda(montoOrigen, origen)}\n`;
-            txt += `➖ *Recibes:* ${formatearMoneda(montoDestino, destino)}\n`;
-        }
-        txt += `➖ *Ruta:* ${origen} ➔ ${destino}\n`;
-        txt += `➖ *Tasa aplicada:* ${tasa}\n`;
+    let resultadoCalculado = (operacion === "dividir") ? (tasa > 0 ? monto / tasa : 0) : (monto * tasa);
+    let resultado = resultadoCalculado;
+    if (origen === "Perú" || destino === "Perú") {
+        resultado = redondearAlSiguienteDiez(resultadoCalculado);
     } else {
-        txt += `➖ *Ruta:* ${origen} ➔ ${destino}\n`;
-        txt += `➖ *Tasa actual:* ${tasa}\n`;
+        resultado = Math.round(resultadoCalculado * 100) / 100;
     }
 
-    // Agregar info BCV si aplica
-    if ((origen === "Venezuela" || destino === "Venezuela") && tasaUsdBCV > 0) {
+    const simOrigen = origen === "Perú" ? "S/" : (origen === "Venezuela" ? "Bs" : (origen === "Colombia" ? "COP $" : "R$"));
+    const resFormateado = formatearMoneda(resultado, destino);
+    const montoFormateado = formatearMoneda(monto, origen);
+
+    let txt = `💸 *COTIZACIÓN DE REMESA* 💸\n`;
+    txt += `-----------------------------------\n`;
+
+    if (monto > 0) {
+        if (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar") {
+            txt += `➖ *Soles a Recibir:* S/ ${monto.toFixed(2)}\n`;
+            txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+            txt += `➖ *Tasa:* ${tasa}\n`;
+            txt += `➖ *Debe Enviar:* Bs ${resultado.toLocaleString('es-VE', {minimumFractionDigits: 2})}\n`;
+        } else {
+            txt += `➖ *Enviar:* ${montoFormateado}\n`;
+            txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
+            txt += `➖ *Tasa:* ${tasa}\n`;
+            txt += `➖ *Recibe:* ${resFormateado}\n`;
+        }
+    } else {
+        txt += ` *De:* ${origen} ➔ *A:* ${destino}\n`;
+        txt += `➖ *Tasa:* ${tasa}\n`;
+    }
+
+    if (origen === "Venezuela" || destino === "Venezuela") {
+        const monedaBCV = document.getElementById("monedaBCV")?.value || "USD";
         const tasaBCVActiva = (monedaBCV === "EUR") ? tasaEurBCV : tasaUsdBCV;
         const simBCV = (monedaBCV === "EUR") ? "€" : "$";
         const nomBCV = (monedaBCV === "EUR") ? "EUR" : "USD";
-        
-        let totalBs = (destino === "Venezuela") ? montoDestino : (operacion === "multiplicar" ? montoDestino : montoOrigen);
-        
-        if (totalBs > 0 && montoOrigen > 0) {
+
+        let totalBs = 0;
+        if (destino === "Venezuela") {
+            totalBs = resultado;
+        } else if (origen === "Venezuela") {
+            totalBs = (operacion === "multiplicar") ? resultado : monto;
+        }
+
+        if (tasaBCVActiva > 0 && totalBs > 0 && monto > 0) {
             let equiv = (totalBs / tasaBCVActiva).toFixed(2);
             txt += `➖ *Equivalente BCV:* ${simBCV} ${equiv} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
         }
 
-        if (montoBCVDeseado > 0) {
-            let bsNecesarios = montoBCVDeseado * tasaBCVActiva;
-            let origenNecesarioCalculado = (operacion === "multiplicar") ? (tasa > 0 ? bsNecesarios / tasa : 0) : (bsNecesarios * tasa);
-            const paisParaRedondeo = (origen === "Perú" || destino === "Perú") ? "Perú" : "Otro";
-            let origenNecesario = redondearSegunPais(origenNecesarioCalculado, paisParaRedondeo);
-            txt += `🎯 *Para recibir ${simBCV}${montoBCVDeseado.toFixed(2)} ${nomBCV}, debes enviar:* ${simOrigen} ${origenNecesario.toFixed(2)}\n`;
+        if (tasaBCVActiva > 0 && montoBCVDeseado > 0) {
+            let bsReq = montoBCVDeseado * tasaBCVActiva;
+            let origReqCalculado = (operacion === "multiplicar") ? (tasa > 0 ? bsReq / tasa : 0) : (bsReq * tasa);
+            let origReq = origReqCalculado;
+            if (origen === "Perú" || destino === "Perú") {
+                origReq = redondearAlSiguienteDiez(origReqCalculado);
+            } else {
+                origReq = Math.round(origReqCalculado * 100) / 100;
+            }
+            txt += `🎯 *Para recibir ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV} debe enviar:* ${simOrigen} ${origReq.toFixed(2)}\n`;
+        }
+    }
+
+    if (monto > 0) {
+        if (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar") {
+            txt += `👉 *Para recibir S/ ${monto.toFixed(2)} debes enviar Bs ${resultado.toLocaleString('es-VE', {minimumFractionDigits: 2})}*\n`;
+        } else {
+            txt += `👉 *Por ${montoFormateado} recibirás ${resFormateado}*\n`;
         }
     }
 
     txt += `-----------------------------------\n`;
-    txt += `✅ *¡Listo para procesar!* Escríbeme para confirmar tu envío. 🙌`;
+    txt += `¡Gracias por tu preferencia! 🙌`;
     return txt;
+}
+
+async function consultarBCV() {
+    const elUsd = document.getElementById("bcvUsd");
+    const elEur = document.getElementById("bcvEur");
+
+    if (elUsd) elUsd.innerText = "Cargando...";
+    if (elEur) elEur.innerText = "Cargando...";
+
+    try {
+        const res = await fetch("https://ve.dolarapi.com/v1/dolares");
+        const data = await res.json();
+        if (Array.isArray(data)) {
+            const oficial = data.find(item => item.fuente === "oficial" || item.nombre === "Oficial");
+            if (oficial && oficial.promedio) {
+                tasaUsdBCV = parseFloat(oficial.promedio);
+                if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
+            }
+        }
+    } catch(e) {
+        try {
+            const resUsd = await fetch("https://ve.dolarapi.com/v1/dolares/oficial");
+            const dataUsd = await resUsd.json();
+            if (dataUsd && dataUsd.promedio) {
+                tasaUsdBCV = parseFloat(dataUsd.promedio);
+                if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
+            }
+        } catch(err) {
+            if (elUsd) elUsd.innerText = "Error BCV";
+        }
+    }
+
+    try {
+        const resEurList = await fetch("https://ve.dolarapi.com/v1/euros");
+        const dataEurList = await resEurList.json();
+        if (Array.isArray(dataEurList)) {
+            const oficialEur = dataEurList.find(item => item.fuente === "oficial" || item.nombre === "Oficial");
+            if (oficialEur && oficialEur.promedio) {
+                tasaEurBCV = parseFloat(oficialEur.promedio);
+                if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)}`;
+            }
+        }
+    } catch(e) {
+        if (elEur) elEur.innerText = "Error BCV";
+    }
+
+    ejecutarCalculo();
 }
 
 function actualizarTablaCruzadaModal() {
@@ -287,41 +306,67 @@ function actualizarTablaCruzadaModal() {
     });
 }
 
-// 9. INICIALIZACIÓN Y EVENTOS
 document.addEventListener("DOMContentLoaded", () => {
     consultarBCV();
-    setInterval(consultarBCV, 600000); // Actualizar cada 10 minutos
+    setInterval(consultarBCV, 600000);
 
-    // Botón de intercambio
-    document.getElementById("swapBtn")?.addEventListener("click", () => {
-        const origenEl = document.getElementById("origen");
-        const destinoEl = document.getElementById("destino");
-        if (origenEl && destinoEl) {
-            [origenEl.value, destinoEl.value] = [destinoEl.value, origenEl.value];
-            ejecutarCalculo();
+    const swapBtn = document.getElementById("swapBtn");
+    if (swapBtn) {
+        swapBtn.addEventListener("click", () => {
+            const origenEl = document.getElementById("origen");
+            const destinoEl = document.getElementById("destino");
+            if (origenEl && destinoEl) {
+                const temp = origenEl.value;
+                origenEl.value = destinoEl.value;
+                destinoEl.value = temp;
+                ejecutarCalculo();
+            }
+        });
+    }
+
+    const elementosNormales = ["origen", "destino", "monto", "operacion", "monedaBCV", "montoBCVDeseado"];
+    elementosNormales.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener("input", ejecutarCalculo, true);
+            el.addEventListener("change", ejecutarCalculo, true);
         }
     });
 
-    // Escuchar cambios en los inputs
-    ["origen", "destino", "monto", "operacion", "monedaBCV", "montoBCVDeseado"].forEach(id => {
-        document.getElementById(id)?.addEventListener("input", ejecutarCalculo);
-    });
-
-    // WhatsApp
-    document.getElementById("btnWhatsapp")?.addEventListener("click", () => {
-        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(generarTextoCotizacion())}`, '_blank');
-    });
-
-    // Copiar al portapapeles
-    document.getElementById("btnCopiarTransaccion")?.addEventListener("click", () => {
-        navigator.clipboard.writeText(generarTextoCotizacion()).then(() => {
-            alert("📋 Cotización copiada al portapapeles exitosamente.");
-        }).catch(() => {
-            alert("❌ Error al copiar. Intenta manualmente.");
+    const btnWhatsapp = document.getElementById("btnWhatsapp");
+    if (btnWhatsapp) {
+        btnWhatsapp.addEventListener("click", () => {
+            const msg = generarTextoCotizacion();
+            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
         });
-    });
+    }
 
-    // --- LÓGICA DEL EDITOR DE TASAS (Ahora sí funciona) ---
+    const btnCopiar = document.getElementById("btnCopiarTransaccion");
+    if (btnCopiar) {
+        btnCopiar.addEventListener("click", () => {
+            const msg = generarTextoCotizacion();
+            navigator.clipboard.writeText(msg).then(() => {
+                alert("📋 Cotización copiada al portapapeles");
+            });
+        });
+    }
+
+    const verTasasBtn = document.getElementById("verTasasBtn");
+    const tablaTasasModal = document.getElementById("tablaTasas");
+    if (verTasasBtn && tablaTasasModal) {
+        verTasasBtn.addEventListener("click", (e) => {
+            e.stopImmediatePropagation();
+            if (tablaTasasModal.style.display === "none" || !tablaTasasModal.style.display) {
+                actualizarTablaCruzadaModal();
+                tablaTasasModal.style.display = "block";
+                verTasasBtn.innerText = "Ocultar tabla de tasas";
+            } else {
+                tablaTasasModal.style.display = "none";
+                verTasasBtn.innerText = "Ver tabla de tasas";
+            }
+        }, true);
+    }
+
     const btnAbrir = document.getElementById("btnAbrirEditor");
     const btnCerrar = document.getElementById("btnCerrarEditor");
     const seccionEditor = document.getElementById("seccionEditorTasas");
@@ -350,45 +395,34 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    btnAbrir?.addEventListener("click", () => {
-        renderTablaEditor();
-        seccionEditor.style.display = seccionEditor.style.display === "none" ? "block" : "none";
-    });
-
-    btnCerrar?.addEventListener("click", () => {
-        seccionEditor.style.display = "none";
-    });
-
-    btnGuardar?.addEventListener("click", () => {
-        const inputs = document.querySelectorAll(".input-tasa-editor");
-        inputs.forEach(inp => {
-            const par = inp.getAttribute("data-par");
-            const v = parseFloat(inp.value);
-            if (par && !isNaN(v) && v > 0) {
-                tasasLocales[par] = v;
-            }
+    if (btnAbrir && seccionEditor) {
+        btnAbrir.addEventListener("click", () => {
+            renderTablaEditor();
+            seccionEditor.style.display = seccionEditor.style.display === "none" ? "block" : "none";
         });
-        localStorage.setItem("tasasLocales", JSON.stringify(tasasLocales));
-        ejecutarCalculo();
-        actualizarTablaCruzadaModal();
-        alert("✅ Tasas guardadas correctamente en este dispositivo.");
-        seccionEditor.style.display = "none";
-    });
+    }
 
-    // Modal de tabla de tasas
-    const verTasasBtn = document.getElementById("verTasasBtn");
-    const tablaTasasModal = document.getElementById("tablaTasas");
-    verTasasBtn?.addEventListener("click", () => {
-        if (tablaTasasModal.style.display === "none" || !tablaTasasModal.style.display) {
+    if (btnCerrar && seccionEditor) {
+        btnCerrar.addEventListener("click", () => seccionEditor.style.display = "none");
+    }
+
+    if (btnGuardar) {
+        btnGuardar.addEventListener("click", () => {
+            const inputs = document.querySelectorAll(".input-tasa-editor");
+            inputs.forEach(inp => {
+                const par = inp.getAttribute("data-par");
+                const v = parseFloat(inp.value);
+                if (par && !isNaN(v) && v > 0) {
+                    tasasLocales[par] = v;
+                }
+            });
+            localStorage.setItem("tasasLocales", JSON.stringify(tasasLocales));
+            ejecutarCalculo();
             actualizarTablaCruzadaModal();
-            tablaTasasModal.style.display = "block";
-            verTasasBtn.innerText = "Ocultar tabla de tasas";
-        } else {
-            tablaTasasModal.style.display = "none";
-            verTasasBtn.innerText = "Ver tabla de tasas";
-        }
-    });
+            alert("✅ Todas las tasas se guardaron correctamente en tu dispositivo.");
+            if (seccionEditor) seccionEditor.style.display = "none";
+        });
+    }
 
-    // Cálculo inicial
     ejecutarCalculo();
 });
