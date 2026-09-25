@@ -12,6 +12,7 @@ const TASAS_DEFAULT = {
 let tasasLocales = JSON.parse(localStorage.getItem("tasasLocales")) || {};
 let tasaUsdBCV = 0;
 let tasaEurBCV = 0;
+let ultimaActualizacionBCV = null;
 
 Object.keys(TASAS_DEFAULT).forEach(k => {
     if (!tasasLocales[k] || isNaN(parseFloat(tasasLocales[k])) || parseFloat(tasasLocales[k]) <= 0) {
@@ -84,7 +85,7 @@ function ejecutarCalculo() {
     if (resultadoEl) resultadoEl.innerText = formatearMoneda(resultado, monedaResultado);
 
     const tasaInfoEl = document.getElementById("tasaInfo");
-    if (tasaInfoEl) tasaInfoEl.innerText = `Tasa actual (${origen} ➔ ${destino}): ${tasa}`;
+    if (tasaInfoEl) tasaInfoEl.innerText = `Tasa actual (${origen}  ${destino}): ${tasa}`;
 
     const lblMonto = document.getElementById("lblMonto");
     if (lblMonto) {
@@ -115,7 +116,8 @@ function ejecutarCalculo() {
 
                 if (totalBs > 0) {
                     let equivBCV = totalBs / tasaBCVActiva;
-                    htmlResult += `(${simBCV} ${equivBCV.toFixed(2)} ${nomBCV} BCV)`;
+                    let horaActual = ultimaActualizacionBCV ? ` · Actualizado: ${ultimaActualizacionBCV}` : "";
+                    htmlResult += `(${simBCV} ${equivBCV.toFixed(2)} ${nomBCV} BCV${horaActual})`;
                 }
 
                 if (montoBCVDeseado > 0) {
@@ -166,13 +168,13 @@ function generarTextoCotizacion() {
     const resFormateado = formatearMoneda(resultado, destino);
     const montoFormateado = formatearMoneda(monto, origen);
 
-    let txt = `💸 *COTIZACIÓN DE REMESA* \n`;
+    let txt = `💸 *COTIZACIÓN DE REMESA* 💸\n`;
     txt += `-----------------------------------\n`;
 
     if (monto > 0) {
         if (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar") {
             txt += `➖ *Soles a Recibir:* S/ ${monto.toFixed(2)}\n`;
-            txt += ` *De:* ${origen} ➔ *A:* ${destino}\n`;
+            txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
             txt += `➖ *Tasa:* ${tasa}\n`;
             txt += `➖ *Debe Enviar:* Bs ${resultado.toLocaleString('es-VE', {minimumFractionDigits: 2})}\n`;
         } else {
@@ -213,16 +215,16 @@ function generarTextoCotizacion() {
             } else {
                 origReq = Math.round(origReqCalculado * 100) / 100;
             }
-            txt += `🎯 *Para recibir ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV} debe enviar:* ${simOrigen} ${origReq.toFixed(2)}\n`;
+            txt += ` *Para recibir ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV} debe enviar:* ${simOrigen} ${origReq.toFixed(2)}\n`;
         }
     }
 
     txt += `-----------------------------------\n`;
-    txt += `¡Gracias por tu preferencia! 🙌`;
+    txt += `¡Gracias por tu preferencia! `;
     return txt;
 }
 
-// 🔄 API ACTUALIZADA: Consulta directamente al BCV en tiempo real
+// 🔄 SISTEMA MULTI-API CON FALLBACK EN CASCADA
 async function consultarBCV() {
     const elUsd = document.getElementById("bcvUsd");
     const elEur = document.getElementById("bcvEur");
@@ -230,50 +232,122 @@ async function consultarBCV() {
     if (elUsd) elUsd.innerText = "Cargando...";
     if (elEur) elEur.innerText = "Cargando...";
 
-    // Usamos pydolarve.org que consulta directamente al BCV y se actualiza en tiempo real
+    let usdObtenido = false;
+    let eurObtenido = false;
+
+    // === API 1: pydolarve.org (endpoint alternativo más estable) ===
     try {
         const [resUsd, resEur] = await Promise.all([
-            fetch("https://pydolarve.org/api/v1/dollar/bcv"),
-            fetch("https://pydolarve.org/api/v1/euro/bcv")
+            fetch("https://pydolarve.org/api/v1/dollar?page=bcv"),
+            fetch("https://pydolarve.org/api/v1/euro?page=bcv")
         ]);
 
-        const dataUsd = await resUsd.json();
-        const dataEur = await resEur.json();
-
-        // pydolarve devuelve: { monitors: { bcv: { price: 855.6625, ... } } }
-        if (dataUsd?.monitors?.bcv?.price) {
-            tasaUsdBCV = parseFloat(dataUsd.monitors.bcv.price);
-            if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
-        }
-
-        if (dataEur?.monitors?.bcv?.price) {
-            tasaEurBCV = parseFloat(dataEur.monitors.bcv.price);
-            if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)}`;
-        }
-
-    } catch(e) {
-        console.error("Error consultando BCV:", e);
-        // Fallback: intentar con la API anterior si la nueva falla
-        try {
-            const resUsd = await fetch("https://ve.dolarapi.com/v1/dolares/oficial");
+        if (resUsd.ok) {
             const dataUsd = await resUsd.json();
-            if (dataUsd?.promedio) {
-                tasaUsdBCV = parseFloat(dataUsd.promedio);
-                if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)} (cache)`;
+            if (dataUsd?.monitors?.bcv?.price) {
+                tasaUsdBCV = parseFloat(dataUsd.monitors.bcv.price);
+                if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
+                usdObtenido = true;
             }
-        } catch(err) {
-            if (elUsd) elUsd.innerText = "Error BCV";
         }
 
-        try {
-            const resEur = await fetch("https://ve.dolarapi.com/v1/euros/oficial");
+        if (resEur.ok) {
             const dataEur = await resEur.json();
-            if (dataEur?.promedio) {
-                tasaEurBCV = parseFloat(dataEur.promedio);
-                if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)} (cache)`;
+            if (dataEur?.monitors?.bcv?.price) {
+                tasaEurBCV = parseFloat(dataEur.monitors.bcv.price);
+                if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)}`;
+                eurObtenido = true;
             }
-        } catch(err) {
-            if (elEur) elEur.innerText = "Error BCV";
+        }
+    } catch(e) {
+        console.log("API 1 falló, intentando API 2...");
+    }
+
+    // === API 2: pydolarve.org (endpoint directo) ===
+    if (!usdObtenido || !eurObtenido) {
+        try {
+            if (!usdObtenido) {
+                const resUsd = await fetch("https://pydolarve.org/api/v1/dollar/bcv");
+                if (resUsd.ok) {
+                    const dataUsd = await resUsd.json();
+                    if (dataUsd?.monitors?.bcv?.price) {
+                        tasaUsdBCV = parseFloat(dataUsd.monitors.bcv.price);
+                        if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
+                        usdObtenido = true;
+                    }
+                }
+            }
+
+            if (!eurObtenido) {
+                const resEur = await fetch("https://pydolarve.org/api/v1/euro/bcv");
+                if (resEur.ok) {
+                    const dataEur = await resEur.json();
+                    if (dataEur?.monitors?.bcv?.price) {
+                        tasaEurBCV = parseFloat(dataEur.monitors.bcv.price);
+                        if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)}`;
+                        eurObtenido = true;
+                    }
+                }
+            }
+        } catch(e) {
+            console.log("API 2 falló, intentando API 3...");
+        }
+    }
+
+    // === API 3: dolarapi.com (último recurso, se actualiza al día siguiente) ===
+    if (!usdObtenido || !eurObtenido) {
+        try {
+            if (!usdObtenido) {
+                const resUsd = await fetch("https://ve.dolarapi.com/v1/dolares/oficial");
+                if (resUsd.ok) {
+                    const dataUsd = await resUsd.json();
+                    if (dataUsd?.promedio) {
+                        tasaUsdBCV = parseFloat(dataUsd.promedio);
+                        if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
+                        usdObtenido = true;
+                    }
+                }
+            }
+
+            if (!eurObtenido) {
+                const resEur = await fetch("https://ve.dolarapi.com/v1/euros/oficial");
+                if (resEur.ok) {
+                    const dataEur = await resEur.json();
+                    if (dataEur?.promedio) {
+                        tasaEurBCV = parseFloat(dataEur.promedio);
+                        if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)}`;
+                        eurObtenido = true;
+                    }
+                }
+            }
+        } catch(e) {
+            console.error("Todas las APIs fallaron:", e);
+            if (!usdObtenido && elUsd) elUsd.innerText = "Error";
+            if (!eurObtenido && elEur) elEur.innerText = "Error";
+        }
+    }
+
+    // Guardar timestamp de última actualización exitosa
+    if (usdObtenido || eurObtenido) {
+        const ahora = new Date();
+        ultimaActualizacionBCV = ahora.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+        
+        // Guardar en localStorage para persistencia
+        localStorage.setItem("cacheBCV", JSON.stringify({
+            usd: tasaUsdBCV,
+            eur: tasaEurBCV,
+            timestamp: ahora.toISOString()
+        }));
+    } else {
+        // Si todo falló, usar caché local si existe
+        const cache = JSON.parse(localStorage.getItem("cacheBCV") || "{}");
+        if (cache.usd && cache.eur) {
+            tasaUsdBCV = cache.usd;
+            tasaEurBCV = cache.eur;
+            if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
+            if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)}`;
+            const cacheDate = new Date(cache.timestamp);
+            ultimaActualizacionBCV = `Caché ${cacheDate.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })}`;
         }
     }
 
@@ -302,9 +376,21 @@ function actualizarTablaCruzadaModal() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    // Cargar caché al iniciar si existe
+    const cache = JSON.parse(localStorage.getItem("cacheBCV") || "{}");
+    if (cache.usd && cache.eur && cache.timestamp) {
+        const cacheAge = Date.now() - new Date(cache.timestamp).getTime();
+        if (cacheAge < 3600000) { // Menos de 1 hora
+            tasaUsdBCV = cache.usd;
+            tasaEurBCV = cache.eur;
+            const cacheDate = new Date(cache.timestamp);
+            ultimaActualizacionBCV = cacheDate.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+        }
+    }
+
     consultarBCV();
-    // Actualizar cada 5 minutos para capturar cambios del BCV en tiempo real
-    setInterval(consultarBCV, 300000);
+    // Actualizar cada 3 minutos para capturar cambios del BCV rápidamente
+    setInterval(consultarBCV, 180000);
 
     const swapBtn = document.getElementById("swapBtn");
     if (swapBtn) {
@@ -342,7 +428,7 @@ document.addEventListener("DOMContentLoaded", () => {
         btnCopiar.addEventListener("click", () => {
             const msg = generarTextoCotizacion();
             navigator.clipboard.writeText(msg).then(() => {
-                alert("📋 Cotización copiada al portapapeles");
+                alert(" Cotización copiada al portapapeles");
             });
         });
     }
