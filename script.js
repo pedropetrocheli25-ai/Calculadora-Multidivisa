@@ -13,18 +13,15 @@ let tasasLocales = JSON.parse(localStorage.getItem("tasasLocales")) || {};
 let tasaUsdBCV = 0;
 let tasaEurBCV = 0;
 
-// Inicializar tasas faltantes
 Object.keys(TASAS_DEFAULT).forEach(k => {
     if (!tasasLocales[k] || isNaN(parseFloat(tasasLocales[k])) || parseFloat(tasasLocales[k]) <= 0) {
         tasasLocales[k] = TASAS_DEFAULT[k];
     }
 });
 
-// Normalización para evitar errores con acentos
 const normalizar = (texto) => texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 const obtenerClave = (origen, destino) => `${normalizar(origen)}-${normalizar(destino)}`;
 
-// Redondeo al siguiente décimo SOLO para operaciones con Perú
 function redondearAlSiguienteDiez(val) {
     if (isNaN(val) || !isFinite(val) || val <= 0) return 0;
     return Math.ceil(Number(val.toFixed(2)) * 10) / 10;
@@ -52,7 +49,6 @@ function obtenerTasaActiva(origen, destino) {
     return parseFloat(tasasLocales[clave]) || parseFloat(TASAS_DEFAULT[clave]) || 1;
 }
 
-// LÓGICA MATEMÁTICA ORIGINAL (Multiplicar = monto × tasa, Dividir = monto ÷ tasa)
 function ejecutarCalculo() {
     const origen = document.getElementById("origen")?.value || "Perú";
     const destino = document.getElementById("destino")?.value || "Venezuela";
@@ -70,10 +66,8 @@ function ejecutarCalculo() {
     let monto = parseFloat(montoInput?.value) || 0;
     let montoBCVDeseado = parseFloat(montoBCVDeseadoInput?.value) || 0;
 
-    // FÓRMULA ORIGINAL
     let resultadoCalculado = (operacion === "dividir") ? (tasa > 0 ? (monto / tasa) : 0) : (monto * tasa);
 
-    // Redondeo al siguiente décimo SOLO si Perú está involucrado
     let resultado = resultadoCalculado;
     if (origen === "Perú" || destino === "Perú") {
         resultado = redondearAlSiguienteDiez(resultadoCalculado);
@@ -82,10 +76,8 @@ function ejecutarCalculo() {
     }
 
     let monedaResultado = destino;
-
-    // Caso especial: Venezuela → Perú con multiplicar (el usuario ingresa Soles deseados)
     if (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar") {
-        monedaResultado = "Venezuela"; 
+        monedaResultado = "Venezuela";
     }
 
     const resultadoEl = document.getElementById("resultado");
@@ -103,7 +95,6 @@ function ejecutarCalculo() {
         }
     }
 
-    // Sección BCV
     const bcvSection = document.getElementById("bcvSection");
     const bcvEquivalenciaEl = document.getElementById("bcvEquivalencia");
 
@@ -155,7 +146,6 @@ function ejecutarCalculo() {
     actualizarTablaCruzadaModal();
 }
 
-// MENSAJE DE WHATSAPP SIN REDUNDANCIA
 function generarTextoCotizacion() {
     const origen = document.getElementById("origen")?.value || "Perú";
     const destino = document.getElementById("destino")?.value || "Venezuela";
@@ -176,23 +166,23 @@ function generarTextoCotizacion() {
     const resFormateado = formatearMoneda(resultado, destino);
     const montoFormateado = formatearMoneda(monto, origen);
 
-    let txt = `💸 *COTIZACIÓN DE REMESA* 💸\n`;
+    let txt = `💸 *COTIZACIÓN DE REMESA* \n`;
     txt += `-----------------------------------\n`;
 
     if (monto > 0) {
         if (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar") {
             txt += `➖ *Soles a Recibir:* S/ ${monto.toFixed(2)}\n`;
-            txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+            txt += ` *De:* ${origen} ➔ *A:* ${destino}\n`;
             txt += `➖ *Tasa:* ${tasa}\n`;
             txt += `➖ *Debe Enviar:* Bs ${resultado.toLocaleString('es-VE', {minimumFractionDigits: 2})}\n`;
         } else {
-            txt += ` *Enviar:* ${montoFormateado}\n`;
+            txt += `➖ *Enviar:* ${montoFormateado}\n`;
             txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
             txt += `➖ *Tasa:* ${tasa}\n`;
-            txt += ` *Recibe:* ${resFormateado}\n`;
+            txt += `➖ *Recibe:* ${resFormateado}\n`;
         }
     } else {
-        txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
+        txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
         txt += `➖ *Tasa:* ${tasa}\n`;
     }
 
@@ -232,6 +222,7 @@ function generarTextoCotizacion() {
     return txt;
 }
 
+// 🔄 API ACTUALIZADA: Consulta directamente al BCV en tiempo real
 async function consultarBCV() {
     const elUsd = document.getElementById("bcvUsd");
     const elEur = document.getElementById("bcvEur");
@@ -239,41 +230,51 @@ async function consultarBCV() {
     if (elUsd) elUsd.innerText = "Cargando...";
     if (elEur) elEur.innerText = "Cargando...";
 
+    // Usamos pydolarve.org que consulta directamente al BCV y se actualiza en tiempo real
     try {
-        const res = await fetch("https://ve.dolarapi.com/v1/dolares");
-        const data = await res.json();
-        if (Array.isArray(data)) {
-            const oficial = data.find(item => item.fuente === "oficial" || item.nombre === "Oficial");
-            if (oficial && oficial.promedio) {
-                tasaUsdBCV = parseFloat(oficial.promedio);
-                if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
-            }
+        const [resUsd, resEur] = await Promise.all([
+            fetch("https://pydolarve.org/api/v1/dollar/bcv"),
+            fetch("https://pydolarve.org/api/v1/euro/bcv")
+        ]);
+
+        const dataUsd = await resUsd.json();
+        const dataEur = await resEur.json();
+
+        // pydolarve devuelve: { monitors: { bcv: { price: 855.6625, ... } } }
+        if (dataUsd?.monitors?.bcv?.price) {
+            tasaUsdBCV = parseFloat(dataUsd.monitors.bcv.price);
+            if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
         }
+
+        if (dataEur?.monitors?.bcv?.price) {
+            tasaEurBCV = parseFloat(dataEur.monitors.bcv.price);
+            if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)}`;
+        }
+
     } catch(e) {
+        console.error("Error consultando BCV:", e);
+        // Fallback: intentar con la API anterior si la nueva falla
         try {
             const resUsd = await fetch("https://ve.dolarapi.com/v1/dolares/oficial");
             const dataUsd = await resUsd.json();
-            if (dataUsd && dataUsd.promedio) {
+            if (dataUsd?.promedio) {
                 tasaUsdBCV = parseFloat(dataUsd.promedio);
-                if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
+                if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)} (cache)`;
             }
         } catch(err) {
             if (elUsd) elUsd.innerText = "Error BCV";
         }
-    }
 
-    try {
-        const resEurList = await fetch("https://ve.dolarapi.com/v1/euros");
-        const dataEurList = await resEurList.json();
-        if (Array.isArray(dataEurList)) {
-            const oficialEur = dataEurList.find(item => item.fuente === "oficial" || item.nombre === "Oficial");
-            if (oficialEur && oficialEur.promedio) {
-                tasaEurBCV = parseFloat(oficialEur.promedio);
-                if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)}`;
+        try {
+            const resEur = await fetch("https://ve.dolarapi.com/v1/euros/oficial");
+            const dataEur = await resEur.json();
+            if (dataEur?.promedio) {
+                tasaEurBCV = parseFloat(dataEur.promedio);
+                if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)} (cache)`;
             }
+        } catch(err) {
+            if (elEur) elEur.innerText = "Error BCV";
         }
-    } catch(e) {
-        if (elEur) elEur.innerText = "Error BCV";
     }
 
     ejecutarCalculo();
@@ -302,7 +303,8 @@ function actualizarTablaCruzadaModal() {
 
 document.addEventListener("DOMContentLoaded", () => {
     consultarBCV();
-    setInterval(consultarBCV, 600000);
+    // Actualizar cada 5 minutos para capturar cambios del BCV en tiempo real
+    setInterval(consultarBCV, 300000);
 
     const swapBtn = document.getElementById("swapBtn");
     if (swapBtn) {
@@ -340,7 +342,7 @@ document.addEventListener("DOMContentLoaded", () => {
         btnCopiar.addEventListener("click", () => {
             const msg = generarTextoCotizacion();
             navigator.clipboard.writeText(msg).then(() => {
-                alert(" Cotización copiada al portapapeles");
+                alert("📋 Cotización copiada al portapapeles");
             });
         });
     }
