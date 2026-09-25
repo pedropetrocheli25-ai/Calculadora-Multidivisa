@@ -13,12 +13,14 @@ let tasasLocales = JSON.parse(localStorage.getItem("tasasLocales")) || {};
 let tasaUsdBCV = 0;
 let tasaEurBCV = 0;
 
+// Inicializar tasas faltantes
 Object.keys(TASAS_DEFAULT).forEach(k => {
     if (!tasasLocales[k] || isNaN(parseFloat(tasasLocales[k])) || parseFloat(tasasLocales[k]) <= 0) {
         tasasLocales[k] = TASAS_DEFAULT[k];
     }
 });
 
+// Normalización para evitar errores con acentos
 const normalizar = (texto) => texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 const obtenerClave = (origen, destino) => `${normalizar(origen)}-${normalizar(destino)}`;
 
@@ -50,7 +52,7 @@ function obtenerTasaActiva(origen, destino) {
     return parseFloat(tasasLocales[clave]) || parseFloat(TASAS_DEFAULT[clave]) || 1;
 }
 
-// LÓGICA MATEMÁTICA ORIGINAL (verificada)
+// LÓGICA MATEMÁTICA ORIGINAL (Multiplicar = monto × tasa, Dividir = monto ÷ tasa)
 function ejecutarCalculo() {
     const origen = document.getElementById("origen")?.value || "Perú";
     const destino = document.getElementById("destino")?.value || "Venezuela";
@@ -68,7 +70,7 @@ function ejecutarCalculo() {
     let monto = parseFloat(montoInput?.value) || 0;
     let montoBCVDeseado = parseFloat(montoBCVDeseadoInput?.value) || 0;
 
-    // FÓRMULA ORIGINAL: multiplicar = monto × tasa, dividir = monto ÷ tasa
+    // FÓRMULA ORIGINAL
     let resultadoCalculado = (operacion === "dividir") ? (tasa > 0 ? (monto / tasa) : 0) : (monto * tasa);
 
     // Redondeo al siguiente décimo SOLO si Perú está involucrado
@@ -83,7 +85,7 @@ function ejecutarCalculo() {
 
     // Caso especial: Venezuela → Perú con multiplicar (el usuario ingresa Soles deseados)
     if (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar") {
-        monedaResultado = "Venezuela"; // El resultado se muestra en Bs (cuántos Bs debe enviar)
+        monedaResultado = "Venezuela"; 
     }
 
     const resultadoEl = document.getElementById("resultado");
@@ -153,7 +155,7 @@ function ejecutarCalculo() {
     actualizarTablaCruzadaModal();
 }
 
-// MENSAJE DE WHATSAPP CON LÓGICA ORIGINAL Y "GRACIAS POR TU PREFERENCIA"
+// MENSAJE DE WHATSAPP SIN REDUNDANCIA
 function generarTextoCotizacion() {
     const origen = document.getElementById("origen")?.value || "Perú";
     const destino = document.getElementById("destino")?.value || "Venezuela";
@@ -184,13 +186,13 @@ function generarTextoCotizacion() {
             txt += `➖ *Tasa:* ${tasa}\n`;
             txt += `➖ *Debe Enviar:* Bs ${resultado.toLocaleString('es-VE', {minimumFractionDigits: 2})}\n`;
         } else {
-            txt += `➖ *Enviar:* ${montoFormateado}\n`;
-            txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
+            txt += ` *Enviar:* ${montoFormateado}\n`;
+            txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
             txt += `➖ *Tasa:* ${tasa}\n`;
-            txt += `➖ *Recibe:* ${resFormateado}\n`;
+            txt += ` *Recibe:* ${resFormateado}\n`;
         }
     } else {
-        txt += ` *De:* ${origen} ➔ *A:* ${destino}\n`;
+        txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
         txt += `➖ *Tasa:* ${tasa}\n`;
     }
 
@@ -222,14 +224,6 @@ function generarTextoCotizacion() {
                 origReq = Math.round(origReqCalculado * 100) / 100;
             }
             txt += `🎯 *Para recibir ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV} debe enviar:* ${simOrigen} ${origReq.toFixed(2)}\n`;
-        }
-    }
-
-    if (monto > 0) {
-        if (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar") {
-            txt += `👉 *Para recibir S/ ${monto.toFixed(2)} debes enviar Bs ${resultado.toLocaleString('es-VE', {minimumFractionDigits: 2})}*\n`;
-        } else {
-            txt += `👉 *Por ${montoFormateado} recibirás ${resFormateado}*\n`;
         }
     }
 
@@ -346,7 +340,7 @@ document.addEventListener("DOMContentLoaded", () => {
         btnCopiar.addEventListener("click", () => {
             const msg = generarTextoCotizacion();
             navigator.clipboard.writeText(msg).then(() => {
-                alert("📋 Cotización copiada al portapapeles");
+                alert(" Cotización copiada al portapapeles");
             });
         });
     }
