@@ -184,30 +184,49 @@ function generarTextoCotizacion() {
     const resFormateado = formatearMoneda(resultado, destino);
     const montoFormateado = formatearMoneda(monto, origen);
 
-    // Detectar si es el caso especial: Perú → Venezuela con DIVISIÓN
+    // Detectar caso especial: Perú -> Venezuela con DIVISIÓN
     const esPeruVenezuelaDividir = (origen === "Perú" && destino === "Venezuela" && operacion === "dividir" && monto > 0);
 
     let txt = `💸 *COTIZACIÓN ENVÍOS JL28* 💸\n`;
     txt += `-----------------------------------\n`;
 
     if (monto > 0) {
-        if (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar") {
+        if (esPeruVenezuelaDividir) {
+            // ✅ FORMATO EXACTO PARA PERÚ → VENEZUELA CON DIVIDIR
+            txt += `➖ *Para recibir:* ${resFormateado}\n`;
+            txt += `➖ *Debe enviar:* ${montoFormateado}\n`;
+            txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
+            txt += `➖ *Tasa:* ${tasa}\n`;
+            
+            // Equivalente BCV = monto a recibir en Bs / tasa BCV
+            if (tasaBCVActiva > 0 && resultado > 0) {
+                let equivBCV = (resultado / tasaBCVActiva).toFixed(2);
+                txt += `➖ *Equivalente BCV:* ${simBCV} ${equivBCV} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
+            }
+        } else if (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar") {
             txt += `➖ *Soles a Recibir:* S/ ${monto.toFixed(2)}\n`;
             txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
             txt += `➖ *Tasa:* ${tasa}\n`;
             txt += `➖ *Debe Enviar:* Bs ${resultado.toLocaleString('es-VE', {minimumFractionDigits: 2})}\n`;
-        } else if (esPeruVenezuelaDividir) {
-            // CASO ESPECIAL: Perú → Venezuela con DIVISIÓN
-            // El usuario ingresa Soles (monto) y recibe Bs (resultado)
-            txt += `➖ *Para recibir:* ${resFormateado}\n`;
-            txt += `➖ *Debe enviar:* ${montoFormateado}\n`;
-            txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
-            txt += `➖ *Tasa:* ${tasa}\n`;
+            
+            if (tasaBCVActiva > 0 && resultado > 0) {
+                let equivBCV = (resultado / tasaBCVActiva).toFixed(2);
+                txt += `➖ *Equivalente BCV:* ${simBCV} ${equivBCV} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
+            }
         } else {
             txt += `➖ *Enviar:* ${montoFormateado}\n`;
             txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
             txt += `➖ *Tasa:* ${tasa}\n`;
             txt += `➖ *Recibe:* ${resFormateado}\n`;
+            
+            // Equivalente BCV para otros casos
+            if (origen === "Venezuela" || destino === "Venezuela") {
+                let totalBs = (destino === "Venezuela") ? resultado : monto;
+                if (tasaBCVActiva > 0 && totalBs > 0) {
+                    let equiv = (totalBs / tasaBCVActiva).toFixed(2);
+                    txt += `➖ *Equivalente BCV:* ${simBCV} ${equiv} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
+                }
+            }
         }
     } else if (montoBCVDeseado > 0) {
         const bsReq = montoBCVDeseado * tasaBCVActiva;
@@ -220,28 +239,14 @@ function generarTextoCotizacion() {
         }
         
         txt += `➖ *Para recibir:* ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}\n`;
-        txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
-        txt += `➖ *Tasa de cambio:* ${tasa}\n`;
+        txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+        txt += ` *Tasa de cambio:* ${tasa}\n`;
         txt += `➖ *Tasa BCV:* Bs ${tasaBCVActiva.toFixed(2)}\n`;
         txt += `➖ *Debe Enviar:* ${simOrigen} ${origReq.toFixed(2)}\n`;
         txt += `➖ *Recibe en Bs:* ${formatearMoneda(bsReq, "Venezuela")}\n`;
     } else {
-        txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+        txt += ` *De:* ${origen} ➔ *A:* ${destino}\n`;
         txt += `➖ *Tasa:* ${tasa}\n`;
-    }
-
-    if (origen === "Venezuela" || destino === "Venezuela") {
-        let totalBs = 0;
-        if (destino === "Venezuela") {
-            totalBs = resultado;
-        } else if (origen === "Venezuela") {
-            totalBs = (operacion === "multiplicar") ? resultado : monto;
-        }
-
-        if (tasaBCVActiva > 0 && totalBs > 0 && monto > 0) {
-            let equiv = (totalBs / tasaBCVActiva).toFixed(2);
-            txt += `➖ *Equivalente BCV:* ${simBCV} ${equiv} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
-        }
     }
 
     txt += `-----------------------------------\n`;
