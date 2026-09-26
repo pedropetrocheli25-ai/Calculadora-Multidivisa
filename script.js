@@ -50,6 +50,12 @@ function obtenerTasaActiva(origen, destino) {
     return parseFloat(tasasLocales[clave]) || parseFloat(TASAS_DEFAULT[clave]) || 1;
 }
 
+// ✅ NUEVA FUNCIÓN: Obtener el nombre de la empresa guardado
+function obtenerNombreEmpresa() {
+    const nombre = localStorage.getItem("nombreEmpresa") || "ENVÍOS JL28";
+    return nombre.toUpperCase();
+}
+
 function ejecutarCalculo() {
     const origen = document.getElementById("origen")?.value || "Perú";
     const destino = document.getElementById("destino")?.value || "Venezuela";
@@ -172,6 +178,9 @@ function generarTextoCotizacion() {
     const simBCV = (monedaBCV === "EUR") ? "€" : "$";
     const nomBCV = (monedaBCV === "EUR") ? "EUR" : "USD";
 
+    // ✅ Usar el nombre de la empresa guardado
+    const nombreEmpresa = obtenerNombreEmpresa();
+
     let resultadoCalculado = (operacion === "dividir") ? (tasa > 0 ? monto / tasa : 0) : (monto * tasa);
     let resultado = resultadoCalculado;
     if (origen === "Perú" || destino === "Perú") {
@@ -187,14 +196,15 @@ function generarTextoCotizacion() {
     const esPeruVenezuelaDividir = (origen === "Perú" && destino === "Venezuela" && operacion === "dividir" && monto > 0);
     const esVenezuelaPeruMultiplicarBCV = (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar" && montoBCVDeseado > 0);
 
-    let txt = `💸 *COTIZACIÓN ENVÍOS JL28* 💸\n`;
+    // ✅ Título dinámico con el nombre de la empresa
+    let txt = `💸 *COTIZACIÓN ${nombreEmpresa}* 💸\n`;
     txt += `-----------------------------------\n`;
 
     if (monto > 0) {
         if (esPeruVenezuelaDividir) {
             txt += `➖ *Para recibir:* ${resFormateado}\n`;
-            txt += ` *Debe enviar:* ${montoFormateado}\n`;
-            txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+            txt += `➖ *Debe enviar:* ${montoFormateado}\n`;
+            txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
             txt += `➖ *Tasa:* ${tasa}\n`;
             
             if (tasaBCVActiva > 0 && resultado > 0) {
@@ -203,13 +213,13 @@ function generarTextoCotizacion() {
             }
         } else if (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar") {
             txt += `➖ *Soles a Recibir:* S/ ${monto.toFixed(2)}\n`;
-            txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+            txt += ` *De:* ${origen} ➔ *A:* ${destino}\n`;
             txt += `➖ *Tasa:* ${tasa}\n`;
             txt += `➖ *Debe Enviar:* Bs ${resultado.toLocaleString('es-VE', {minimumFractionDigits: 2})}\n`;
             
             if (tasaBCVActiva > 0 && resultado > 0) {
                 let equivBCV = (resultado / tasaBCVActiva).toFixed(2);
-                txt += ` *Equivalente BCV:* ${simBCV} ${equivBCV} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
+                txt += `➖ *Equivalente BCV:* ${simBCV} ${equivBCV} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
             }
         } else {
             txt += `➖ *Enviar:* ${montoFormateado}\n`;
@@ -221,15 +231,12 @@ function generarTextoCotizacion() {
                 let totalBs = (destino === "Venezuela") ? resultado : monto;
                 if (tasaBCVActiva > 0 && totalBs > 0) {
                     let equiv = (totalBs / tasaBCVActiva).toFixed(2);
-                    txt += ` *Equivalente BCV:* ${simBCV} ${equiv} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
+                    txt += `➖ *Equivalente BCV:* ${simBCV} ${equiv} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
                 }
             }
         }
     } else if (esVenezuelaPeruMultiplicarBCV) {
-        // ✅ CASO ESPECIAL: Venezuela → Perú con multiplicar y USD/EUR
-        // 1. Convertir USD a Bs: $5 × 855.66 = Bs 4,278.30
         const bsNecesarios = montoBCVDeseado * tasaBCVActiva;
-        // 2. Dividir Bs entre la tasa: Bs 4,278.30 ÷ 283.2 = S/ 15.11
         const solesRecibidos = tasa > 0 ? bsNecesarios / tasa : 0;
         const solesRedondeados = redondearAlSiguienteDiez(solesRecibidos);
         
@@ -250,13 +257,13 @@ function generarTextoCotizacion() {
         }
         
         txt += `➖ *Para recibir:* ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}\n`;
-        txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+        txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
         txt += `➖ *Tasa de cambio:* ${tasa}\n`;
         txt += `➖ *Tasa BCV:* Bs ${tasaBCVActiva.toFixed(2)}\n`;
         txt += `➖ *Debe Enviar:* ${simOrigen} ${origReq.toFixed(2)}\n`;
         txt += `➖ *Recibe en Bs:* ${formatearMoneda(bsReq, "Venezuela")}\n`;
     } else {
-        txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
+        txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
         txt += `➖ *Tasa:* ${tasa}\n`;
     }
 
@@ -418,6 +425,18 @@ document.addEventListener("DOMContentLoaded", () => {
             const cacheDate = new Date(cache.timestamp);
             ultimaActualizacionBCV = cacheDate.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
         }
+    }
+
+    // ✅ Cargar nombre de la empresa guardado
+    const nombreEmpresaInput = document.getElementById("nombreEmpresa");
+    if (nombreEmpresaInput) {
+        const nombreGuardado = localStorage.getItem("nombreEmpresa") || "Envíos JL28";
+        nombreEmpresaInput.value = nombreGuardado;
+        
+        // Guardar automáticamente cuando el usuario escriba
+        nombreEmpresaInput.addEventListener("input", () => {
+            localStorage.setItem("nombreEmpresa", nombreEmpresaInput.value.trim());
+        });
     }
 
     consultarBCV();
