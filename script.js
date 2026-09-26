@@ -193,9 +193,9 @@ function generarTextoCotizacion() {
     if (monto > 0) {
         if (esPeruVenezuelaDividir) {
             txt += `➖ *Para recibir:* ${resFormateado}\n`;
-            txt += `➖ *Debe enviar:* ${montoFormateado}\n`;
+            txt += ` *Debe enviar:* ${montoFormateado}\n`;
             txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
-            txt += ` *Tasa:* ${tasa}\n`;
+            txt += `➖ *Tasa:* ${tasa}\n`;
             
             if (tasaBCVActiva > 0 && resultado > 0) {
                 let equivBCV = (resultado / tasaBCVActiva).toFixed(2);
@@ -209,7 +209,7 @@ function generarTextoCotizacion() {
             
             if (tasaBCVActiva > 0 && resultado > 0) {
                 let equivBCV = (resultado / tasaBCVActiva).toFixed(2);
-                txt += `➖ *Equivalente BCV:* ${simBCV} ${equivBCV} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
+                txt += ` *Equivalente BCV:* ${simBCV} ${equivBCV} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
             }
         } else {
             txt += `➖ *Enviar:* ${montoFormateado}\n`;
@@ -221,21 +221,24 @@ function generarTextoCotizacion() {
                 let totalBs = (destino === "Venezuela") ? resultado : monto;
                 if (tasaBCVActiva > 0 && totalBs > 0) {
                     let equiv = (totalBs / tasaBCVActiva).toFixed(2);
-                    txt += `➖ *Equivalente BCV:* ${simBCV} ${equiv} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
+                    txt += ` *Equivalente BCV:* ${simBCV} ${equiv} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
                 }
             }
         }
     } else if (esVenezuelaPeruMultiplicarBCV) {
         // ✅ CASO ESPECIAL: Venezuela → Perú con multiplicar y USD/EUR
+        // 1. Convertir USD a Bs: $5 × 855.66 = Bs 4,278.30
         const bsNecesarios = montoBCVDeseado * tasaBCVActiva;
-        const solesRecibidos = montoBCVDeseado * tasa;
+        // 2. Dividir Bs entre la tasa: Bs 4,278.30 ÷ 283.2 = S/ 15.11
+        const solesRecibidos = tasa > 0 ? bsNecesarios / tasa : 0;
+        const solesRedondeados = redondearAlSiguienteDiez(solesRecibidos);
         
         txt += `➖ *Enviando:* ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}\n`;
         txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
         txt += `➖ *Tasa de cambio:* ${tasa}\n`;
         txt += `➖ *Tasa BCV:* Bs ${tasaBCVActiva.toFixed(2)}\n`;
         txt += `➖ *Debe Enviar:* Bs ${bsNecesarios.toFixed(2)}\n`;
-        txt += `➖ *Recibe en S/:* S/ ${solesRecibidos.toFixed(2)}\n`;
+        txt += `➖ *Recibe en S/:* S/ ${solesRedondeados.toFixed(2)}\n`;
     } else if (montoBCVDeseado > 0) {
         const bsReq = montoBCVDeseado * tasaBCVActiva;
         let origReqCalculado = (operacion === "multiplicar") ? (tasa > 0 ? bsReq / tasa : 0) : (bsReq * tasa);
@@ -253,12 +256,12 @@ function generarTextoCotizacion() {
         txt += `➖ *Debe Enviar:* ${simOrigen} ${origReq.toFixed(2)}\n`;
         txt += `➖ *Recibe en Bs:* ${formatearMoneda(bsReq, "Venezuela")}\n`;
     } else {
-        txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+        txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
         txt += `➖ *Tasa:* ${tasa}\n`;
     }
 
     txt += `-----------------------------------\n`;
-    txt += `¡Gracias por tu preferencia! `;
+    txt += `¡Gracias por tu preferencia! 🙌`;
     return txt;
 }
 
@@ -456,7 +459,7 @@ document.addEventListener("DOMContentLoaded", () => {
         btnCopiar.addEventListener("click", () => {
             const msg = generarTextoCotizacion();
             navigator.clipboard.writeText(msg).then(() => {
-                alert("📋 Cotización copiada al portapapeles");
+                alert(" Cotización copiada al portapapeles");
             });
         });
     }
@@ -494,7 +497,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const tr = document.createElement("tr");
                     tr.style.borderBottom = "1px solid #334155";
                     tr.innerHTML = `
-                        <td style="padding: 8px; color: #f8fafc; font-size: 0.85em; font-weight: 600;">${o} ➔ ${d}</td>
+                        <td style="padding: 8px; color: #f8fafc; font-size: 0.85em; font-weight: 600;">${o}  ${d}</td>
                         <td style="padding: 8px; text-align: right;">
                             <input type="number" step="any" value="${val}" data-par="${par}" class="input-tasa-editor" style="padding: 6px 8px; font-size: 0.9em; width: 100px; text-align: right; background: #0f172a; color: #74c69d; border: 1px solid #334155; border-radius: 6px; font-weight: bold;">
                         </td>
