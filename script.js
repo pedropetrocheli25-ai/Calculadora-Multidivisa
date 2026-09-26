@@ -186,15 +186,15 @@ function generarTextoCotizacion() {
 
     const esPeruVenezuelaDividir = (origen === "Perú" && destino === "Venezuela" && operacion === "dividir" && monto > 0);
 
-    let txt = `💸 *COTIZACIÓN ENVÍOS JL28* \n`;
+    let txt = `💸 *COTIZACIÓN ENVÍOS JL28* 💸\n`;
     txt += `-----------------------------------\n`;
 
     if (monto > 0) {
         if (esPeruVenezuelaDividir) {
             txt += `➖ *Para recibir:* ${resFormateado}\n`;
             txt += `➖ *Debe enviar:* ${montoFormateado}\n`;
-            txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
-            txt += ` *Tasa:* ${tasa}\n`;
+            txt += ` *De:* ${origen} ➔ *A:* ${destino}\n`;
+            txt += `➖ *Tasa:* ${tasa}\n`;
             
             if (tasaBCVActiva > 0 && resultado > 0) {
                 let equivBCV = (resultado / tasaBCVActiva).toFixed(2);
@@ -237,7 +237,7 @@ function generarTextoCotizacion() {
         txt += `➖ *Para recibir:* ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}\n`;
         txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
         txt += `➖ *Tasa de cambio:* ${tasa}\n`;
-        txt += ` *Tasa BCV:* Bs ${tasaBCVActiva.toFixed(2)}\n`;
+        txt += `➖ *Tasa BCV:* Bs ${tasaBCVActiva.toFixed(2)}\n`;
         txt += `➖ *Debe Enviar:* ${simOrigen} ${origReq.toFixed(2)}\n`;
         txt += `➖ *Recibe en Bs:* ${formatearMoneda(bsReq, "Venezuela")}\n`;
     } else {
