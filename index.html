@@ -5,11 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Calculadora Multidivisa Pro</title>
 
-    <!-- Configuración PWA y Móvil -->
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#121212">
 
-    <!-- Soporte para iOS / Safari -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Remesas Pro">
@@ -25,6 +23,14 @@
         </div>
 
         <div class="card">
+
+            <!-- ✅ NUEVO: Configuración del nombre de la empresa -->
+            <div class="form-group" style="background: #1e293b; padding: 12px; border-radius: 10px; border: 1px solid #334155; margin-bottom: 15px;">
+                <label style="color: #74c69d; font-weight: bold; font-size: 0.9em;">🏢 Nombre de la Empresa (aparece en el mensaje)</label>
+                <input type="text" id="nombreEmpresa" class="form-control" placeholder="Ej: Envíos JL28" style="margin-top: 8px;">
+                <small style="color: #94a3b8; font-size: 0.75em; margin-top: 4px; display: block;">Se guarda automáticamente en tu dispositivo</small>
+            </div>
+
             <div class="form-group">
                 <label>País Origen</label>
                 <select id="origen" class="form-control">
@@ -57,7 +63,7 @@
                         <span class="bcv-value" id="bcvUsd">Cargando...</span>
                     </div>
                     <div class="bcv-card eur">
-                        <span class="bcv-label">🇪🇺 EUR BCV 🔄</span>
+                        <span class="bcv-label">🇪 EUR BCV 🔄</span>
                         <span class="bcv-value" id="bcvEur">Cargando...</span>
                     </div>
                 </div>
@@ -66,7 +72,7 @@
                     <label>Moneda BCV para equivalencia</label>
                     <select id="monedaBCV" class="form-control">
                         <option value="USD">💵 Dólar (USD)</option>
-                        <option value="EUR">💶 Euro (EUR)</option>
+                        <option value="EUR"> Euro (EUR)</option>
                     </select>
                 </div>
 
@@ -154,10 +160,8 @@
         </div>
     </div>
 
-    <!-- Lógica de la Calculadora (Cargada de forma segura y optimizada) -->
     <script src="script.js" defer></script>
 
-    <!-- Service Worker -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
