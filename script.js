@@ -185,6 +185,7 @@ function generarTextoCotizacion() {
     const montoFormateado = formatearMoneda(monto, origen);
 
     const esPeruVenezuelaDividir = (origen === "Perú" && destino === "Venezuela" && operacion === "dividir" && monto > 0);
+    const esVenezuelaPeruMultiplicarBCV = (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar" && montoBCVDeseado > 0);
 
     let txt = `💸 *COTIZACIÓN ENVÍOS JL28* 💸\n`;
     txt += `-----------------------------------\n`;
@@ -193,8 +194,8 @@ function generarTextoCotizacion() {
         if (esPeruVenezuelaDividir) {
             txt += `➖ *Para recibir:* ${resFormateado}\n`;
             txt += `➖ *Debe enviar:* ${montoFormateado}\n`;
-            txt += ` *De:* ${origen} ➔ *A:* ${destino}\n`;
-            txt += `➖ *Tasa:* ${tasa}\n`;
+            txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+            txt += ` *Tasa:* ${tasa}\n`;
             
             if (tasaBCVActiva > 0 && resultado > 0) {
                 let equivBCV = (resultado / tasaBCVActiva).toFixed(2);
@@ -224,6 +225,17 @@ function generarTextoCotizacion() {
                 }
             }
         }
+    } else if (esVenezuelaPeruMultiplicarBCV) {
+        // ✅ CASO ESPECIAL: Venezuela → Perú con multiplicar y USD/EUR
+        const bsNecesarios = montoBCVDeseado * tasaBCVActiva;
+        const solesRecibidos = montoBCVDeseado * tasa;
+        
+        txt += `➖ *Enviando:* ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}\n`;
+        txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
+        txt += `➖ *Tasa de cambio:* ${tasa}\n`;
+        txt += `➖ *Tasa BCV:* Bs ${tasaBCVActiva.toFixed(2)}\n`;
+        txt += `➖ *Debe Enviar:* Bs ${bsNecesarios.toFixed(2)}\n`;
+        txt += `➖ *Recibe en S/:* S/ ${solesRecibidos.toFixed(2)}\n`;
     } else if (montoBCVDeseado > 0) {
         const bsReq = montoBCVDeseado * tasaBCVActiva;
         let origReqCalculado = (operacion === "multiplicar") ? (tasa > 0 ? bsReq / tasa : 0) : (bsReq * tasa);
@@ -246,7 +258,7 @@ function generarTextoCotizacion() {
     }
 
     txt += `-----------------------------------\n`;
-    txt += `¡Gracias por tu preferencia! 🙌`;
+    txt += `¡Gracias por tu preferencia! `;
     return txt;
 }
 
