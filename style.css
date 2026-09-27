@@ -1,291 +1,273 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
-}
-
+/* =========================================
+   ESTILOS GLOBALES Y FONDO
+   ========================================= */
 body {
-    background-color: #121212;
-    color: #ffffff;
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 16px;
+    background-color: #0b1120; /* Fondo azul muy oscuro, casi negro */
+    color: #f1f5f9; /* Texto blanco suave */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 20px 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
 }
 
 .container {
-    width: 100%;
-    max-width: 440px;
+    max-width: 500px;
+    margin: 0 auto;
 }
 
 .header {
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
 }
 
 .header h1 {
-    font-size: 24px;
+    font-size: 1.8em;
+    margin: 0 0 8px 0;
+    color: #ffffff;
     font-weight: 700;
-    margin-bottom: 8px;
+    letter-spacing: -0.5px;
 }
 
-.header .subtitle {
-    font-size: 13px;
-    color: #a0a0a0;
-    line-height: 1.4;
+.subtitle {
+    color: #94a3b8;
+    font-size: 0.95em;
+    margin: 0;
 }
 
+/* =========================================
+   TARJETA PRINCIPAL (CARD)
+   ========================================= */
 .card {
-    background-color: #1e1e1e;
-    border-radius: 20px;
+    background: #1e293b; /* Gris azulado oscuro */
+    border-radius: 24px;
     padding: 24px;
-    border: 1px solid #2a2a2a;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    border: 1px solid #334155;
 }
 
+/* =========================================
+   FORMULARIOS E INPUTS
+   ========================================= */
 .form-group {
-    margin-bottom: 16px;
+    margin-bottom: 18px;
 }
 
 .form-group label {
     display: block;
-    font-size: 13px;
-    font-weight: 600;
-    color: #e0e0e0;
     margin-bottom: 8px;
+    font-size: 0.9em;
+    font-weight: 600;
+    color: #cbd5e1;
 }
 
 .form-control {
     width: 100%;
-    padding: 12px 14px;
-    background-color: #2a2a2d;
-    border: 1px solid #3a3a3c;
-    border-radius: 12px;
-    font-size: 15px;
+    background: #0f172a; /* Fondo más oscuro para los inputs */
+    border: 1px solid #334155;
     color: #ffffff;
-    outline: none;
-    transition: border-color 0.2s;
+    padding: 16px;
+    border-radius: 12px;
+    font-size: 16px;
+    box-sizing: border-box;
+    transition: all 0.3s ease;
+    appearance: none; /* Quita el estilo por defecto del navegador */
 }
 
+/* Efecto al tocar o hacer clic en un input */
 .form-control:focus {
-    border-color: #2ecc71;
+    border-color: #10b981; /* Borde verde */
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2); /* Resplandor verde sutil */
+    outline: none;
 }
 
+/* Flecha personalizada para los select */
 select.form-control {
-    appearance: none;
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a0a0a0' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
     background-repeat: no-repeat;
-    background-position: right 16px center;
+    background-position: right 16px top 50%;
+    background-size: 12px auto;
     padding-right: 40px;
 }
 
+/* =========================================
+   BOTÓN DE INTERCAMBIO (SWAP)
+   ========================================= */
 .swap-container {
     display: flex;
     justify-content: center;
-    margin: -6px 0 10px 0;
+    margin: -10px 0 10px 0;
 }
 
 .btn-swap {
-    background-color: #2a2a2d;
-    border: 1px solid #3a3a3c;
-    color: #ffffff;
-    width: 42px;
-    height: 42px;
-    border-radius: 10px;
-    font-size: 18px;
+    background: #334155;
+    border: 1px solid #475569;
+    color: #10b981;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    font-size: 1.2em;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.2s;
 }
 
-.btn-swap:active {
-    background-color: #3a3a3c;
+.btn-swap:hover {
+    background: #475569;
+    transform: rotate(180deg);
 }
 
-.bcv-section {
-    background-color: #252528;
-    border-radius: 14px;
-    padding: 16px;
-    margin-bottom: 16px;
-    border: 1px solid #3a3a3c;
-}
-
+/* =========================================
+   SECCIÓN BCV (Tasas de cambio)
+   ========================================= */
 .bcv-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 12px;
+    gap: 12px;
+    margin-bottom: 15px;
 }
 
 .bcv-card {
-    padding: 10px;
-    border-radius: 10px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 12px;
     text-align: center;
+    transition: transform 0.2s;
 }
 
-.bcv-card.usd {
-    background: linear-gradient(135deg, #1e5e37, #132f20);
-    border: 1px solid #2ecc71;
+.bcv-card:hover {
+    transform: translateY(-2px);
 }
 
-.bcv-card.eur {
-    background: linear-gradient(135deg, #1b3a4b, #002855);
-    border: 1px solid #3498db;
-}
+.bcv-card.usd { border-color: #10b981; }
+.bcv-card.eur { border-color: #3b82f6; }
 
 .bcv-label {
     display: block;
-    font-size: 11px;
-    color: #a0a0a0;
-    text-transform: uppercase;
+    font-size: 0.8em;
+    color: #94a3b8;
     margin-bottom: 4px;
 }
 
 .bcv-value {
     display: block;
-    font-size: 16px;
-    font-weight: 700;
+    font-size: 1.1em;
+    font-weight: bold;
     color: #ffffff;
 }
 
+/* =========================================
+   TARJETA DE INFORMACIÓN DE TASA
+   ========================================= */
 .tasa-info-card {
-    background-color: #28282b;
+    background: #0f172a;
+    border: 1px solid #334155;
     border-radius: 12px;
-    padding: 14px;
+    padding: 12px;
     text-align: center;
-    font-size: 14px;
-    color: #a0a0a0;
-    margin-bottom: 16px;
+    font-size: 0.9em;
+    color: #94a3b8;
+    margin-bottom: 20px;
 }
 
-.tasa-info-card strong {
-    color: #ffffff;
-    font-size: 16px;
-}
-
+/* =========================================
+   CAJA DE RESULTADO (La caja verde grande)
+   ========================================= */
 .result-box {
-    background-color: #132f20;
-    border: 1px solid #1e5e37;
-    border-radius: 16px;
-    padding: 20px;
+    background: linear-gradient(145deg, #064e3b, #022c22); /* Degradado verde elegante */
+    border: 1px solid #10b981;
+    border-radius: 20px;
+    padding: 24px;
     text-align: center;
-    margin-bottom: 16px;
+    box-shadow: 0 10px 25px rgba(16, 185, 129, 0.15); /* Resplandor verde */
+    margin: 20px 0;
 }
 
 .result-title {
     display: block;
-    font-size: 13px;
-    color: #a0a0a0;
+    font-size: 0.9em;
+    color: #6ee7b7;
+    text-transform: uppercase;
+    letter-spacing: 1px;
     margin-bottom: 8px;
 }
 
 .result-amount {
-    font-size: 28px;
+    font-size: 2.5em;
     font-weight: 800;
-    color: #2ecc71;
+    color: #34d399; /* Verde brillante */
+    margin: 10px 0;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
-.bcv-equivalencia {
-    margin-top: 12px;
-    padding-top: 10px;
-    border-top: 1px dashed rgba(255, 255, 255, 0.2);
-    font-size: 13px;
-    color: #3498db;
-    line-height: 1.4;
-    font-weight: 600;
-}
-
-/* BOTÓN WHATSAPP */
-.btn-whatsapp {
-    width: 100%;
-    padding: 14px;
-    background-color: #25D366;
-    border: none;
-    border-radius: 12px;
-    color: #000000;
-    font-size: 15px;
-    font-weight: 700;
+/* =========================================
+   BOTONES DE ACCIÓN
+   ========================================= */
+button {
     cursor: pointer;
-    margin-bottom: 8px;
-    transition: transform 0.1s, background-color 0.2s;
+    font-family: inherit;
+}
+
+.btn-whatsapp {
+    background: #25D366; /* Verde oficial de WhatsApp */
+    color: #000000;
+    font-weight: 700;
+    font-size: 1.05em;
+    padding: 16px;
+    border-radius: 12px;
+    border: none;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+}
+
+.btn-whatsapp:hover {
+    background: #20bd5a;
+    transform: translateY(-2px);
 }
 
 .btn-whatsapp:active {
     transform: scale(0.98);
-    background-color: #20ba5a;
-}
-
-/* TARIFARIO CARD */
-.tarifario-card {
-    background-color: #252528;
-    border: 1px solid #3a3a3c;
-    border-radius: 16px;
-    padding: 16px;
-    margin-top: 12px;
-    margin-bottom: 12px;
-}
-
-.tarifario-header {
-    font-size: 13px;
-    color: #2ecc71;
-    font-weight: 600;
-    margin-bottom: 12px;
-    line-height: 1.4;
-}
-
-.tarifario-header small {
-    display: block;
-    color: #a0a0a0;
-    font-weight: 400;
-    margin-top: 4px;
 }
 
 .btn-secondary {
-    width: 100%;
+    background: #334155;
+    color: #f1f5f9;
+    font-weight: 600;
     padding: 14px;
-    background-color: #2a2a2d;
-    border: 1px solid #3a3a3c;
     border-radius: 12px;
-    color: #ffffff;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.modal-tasas {
-    margin-top: 20px;
-    padding-top: 16px;
-    border-top: 1px solid #2a2a2a;
-}
-
-.modal-tasas h3 {
-    font-size: 15px;
-    margin-bottom: 12px;
-    text-align: center;
-}
-
-.table-container {
-    max-height: 260px;
-    overflow-y: auto;
-}
-
-table {
+    border: 1px solid #475569;
     width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
 
-th, td {
-    padding: 8px 6px;
-    text-align: left;
-    border-bottom: 1px solid #3a3a3c;
+.btn-secondary:hover {
+    background: #475569;
 }
 
-th {
-    color: #2ecc71;
-    font-weight: 600;
+.btn-secondary:active {
+    transform: scale(0.98);
+}
+
+/* =========================================
+   RESPONSIVE (Para que se vea bien en PC también)
+   ========================================= */
+@media (min-width: 600px) {
+    body {
+        padding: 40px 20px;
+    }
+    .card {
+        padding: 32px;
+    }
 }
