@@ -99,7 +99,7 @@ function ejecutarCalculo() {
     }
 
     const tasaInfoEl = document.getElementById("tasaInfo");
-    if (tasaInfoEl) tasaInfoEl.innerText = `Tasa actual (${origen}  ${destino}): ${tasa}`;
+    if (tasaInfoEl) tasaInfoEl.innerText = `Tasa actual (${origen} ➔ ${destino}): ${tasa}`;
 
     const lblMonto = document.getElementById("lblMonto");
     if (lblMonto) {
@@ -148,7 +148,7 @@ function ejecutarCalculo() {
                     }
 
                     let marginTop = (totalBs > 0 && monto > 0) ? "margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.2);" : "";
-                    htmlResult += `<div style="${marginTop} color: #b7e4c7; font-size: 1em;">🎯 Para recibir <strong>${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}</strong> debe enviar:<br><span style="font-size: 1.25em; font-weight: bold; color: #ffffff;">${simOrigen} ${origenNecesario.toFixed(2)}</span> <small style="color: #94a3b8;">(Bs ${bsNecesarios.toFixed(2)})</small></div>`;
+                    htmlResult += `<div style="${marginTop} color: #b7e4c7; font-size: 1em;"> Para recibir <strong>${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}</strong> debe enviar:<br><span style="font-size: 1.25em; font-weight: bold; color: #ffffff;">${simOrigen} ${origenNecesario.toFixed(2)}</span> <small style="color: #94a3b8;">(Bs ${bsNecesarios.toFixed(2)})</small></div>`;
                 }
 
                 bcvEquivalenciaEl.innerHTML = htmlResult;
@@ -201,18 +201,20 @@ function generarTextoCotizacion() {
 
     if (monto > 0) {
         if (esPeruVenezuelaDividir) {
-            // Perú -> Venezuela, Dividir
-            txt += ` *Para recibir:* ${resFormateado}\n`;
-            txt += `➖ *Debe enviar:* ${montoFormateado}\n`;
-            txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+            // ✅ CORREGIDO: 
+            // - resultado = Soles que debe enviar (formateado como S/ con moneda de origen)
+            // - monto = Bs que quiere que reciban (formateado como Bs con moneda de destino)
+            // - BCV se calcula sobre los Bs a recibir (monto)
+            txt += `➖ *Debe Enviar:* ${formatearMoneda(resultado, origen)}\n`;
+            txt += `➖ *Para recibir:* ${formatearMoneda(monto, destino)}\n`;
+            txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
             txt += `➖ *Tasa:* ${tasa}\n`;
             
-            if (tasaBCVActiva > 0 && resultado > 0) {
-                let equivBCV = (resultado / tasaBCVActiva).toFixed(2);
+            if (tasaBCVActiva > 0 && monto > 0) {
+                let equivBCV = (monto / tasaBCVActiva).toFixed(2);
                 txt += `➖ *Equivalente BCV:* ${simBCV} ${equivBCV} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
             }
         } else if (esVenezuelaPeruMultiplicar && !montoBCVDeseado) {
-            // Venezuela -> Peru, Multiplicar, monto normal
             txt += `➖ *Soles a Recibir:* S/ ${monto.toFixed(2)}\n`;
             txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
             txt += `➖ *Tasa:* ${tasa}\n`;
@@ -223,9 +225,8 @@ function generarTextoCotizacion() {
                 txt += `➖ *Equivalente BCV:* ${simBCV} ${equivBCV} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
             }
         } else {
-            // Formato genérico
             txt += `➖ *Enviar:* ${montoFormateado}\n`;
-            txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+            txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
             txt += `➖ *Tasa:* ${tasa}\n`;
             txt += `➖ *Recibe:* ${resFormateado}\n`;
             
@@ -238,19 +239,17 @@ function generarTextoCotizacion() {
             }
         }
     } else if (esVenezuelaPeruMultiplicarBCV) {
-        // Venezuela -> Peru, Multiplicar, Monto exacto USD/EUR
         const bsNecesarios = montoBCVDeseado * tasaBCVActiva;
         const solesRecibidos = tasa > 0 ? bsNecesarios / tasa : 0;
         const solesRedondeados = redondearAlSiguienteDiez(solesRecibidos);
         
         txt += `➖ *Enviando:* ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}\n`;
-        txt += ` *De:* ${origen} ➔ *A:* ${destino}\n`;
+        txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
         txt += `➖ *Tasa de cambio:* ${tasa}\n`;
         txt += `➖ *Tasa BCV:* Bs ${tasaBCVActiva.toFixed(2)}\n`;
         txt += `➖ *Debe Enviar:* Bs ${bsNecesarios.toFixed(2)}\n`;
         txt += `➖ *Recibe en S/:* S/ ${solesRedondeados.toFixed(2)}\n`;
     } else if (montoBCVDeseado > 0) {
-        // Monto exacto USD/EUR (Otras rutas)
         const bsReq = montoBCVDeseado * tasaBCVActiva;
         let origReqCalculado = (operacion === "multiplicar") ? (tasa > 0 ? bsReq / tasa : 0) : (bsReq * tasa);
         let origReq = origReqCalculado;
@@ -261,7 +260,7 @@ function generarTextoCotizacion() {
         }
         
         txt += `➖ *Para recibir:* ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}\n`;
-        txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
+        txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
         txt += `➖ *Tasa de cambio:* ${tasa}\n`;
         txt += `➖ *Tasa BCV:* Bs ${tasaBCVActiva.toFixed(2)}\n`;
         txt += `➖ *Debe Enviar:* ${simOrigen} ${origReq.toFixed(2)}\n`;
@@ -272,7 +271,7 @@ function generarTextoCotizacion() {
     }
 
     txt += `-----------------------------------\n`;
-    txt += `¡Gracias por tu preferencia! 🙌`;
+    txt += `¡Gracias por tu preferencia! `;
     return txt;
 }
 
@@ -518,7 +517,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const tr = document.createElement("tr");
                     tr.style.borderBottom = "1px solid #334155";
                     tr.innerHTML = `
-                        <td style="padding: 8px; color: #f8fafc; font-size: 0.85em; font-weight: 600;">${o}  ${d}</td>
+                        <td style="padding: 8px; color: #f8fafc; font-size: 0.85em; font-weight: 600;">${o} ➔ ${d}</td>
                         <td style="padding: 8px; text-align: right;">
                             <input type="number" step="any" value="${val}" data-par="${par}" class="input-tasa-editor" style="padding: 6px 8px; font-size: 0.9em; width: 100px; text-align: right; background: #0f172a; color: #74c69d; border: 1px solid #334155; border-radius: 6px; font-weight: bold;">
                         </td>
