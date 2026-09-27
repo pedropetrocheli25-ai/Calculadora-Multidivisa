@@ -50,10 +50,9 @@ function obtenerTasaActiva(origen, destino) {
     return parseFloat(tasasLocales[clave]) || parseFloat(TASAS_DEFAULT[clave]) || 1;
 }
 
-// ✅ NUEVA FUNCIÓN: Obtener el nombre de la empresa guardado
 function obtenerNombreEmpresa() {
-    const nombre = localStorage.getItem("nombreEmpresa") || "ENVÍOS JL28";
-    return nombre.toUpperCase();
+    const nombre = localStorage.getItem("nombreEmpresa") || "";
+    return nombre.trim().toUpperCase();
 }
 
 function ejecutarCalculo() {
@@ -178,8 +177,8 @@ function generarTextoCotizacion() {
     const simBCV = (monedaBCV === "EUR") ? "€" : "$";
     const nomBCV = (monedaBCV === "EUR") ? "EUR" : "USD";
 
-    // ✅ Usar el nombre de la empresa guardado
     const nombreEmpresa = obtenerNombreEmpresa();
+    const tituloEmpresa = nombreEmpresa ? ` ${nombreEmpresa}` : "";
 
     let resultadoCalculado = (operacion === "dividir") ? (tasa > 0 ? monto / tasa : 0) : (monto * tasa);
     let resultado = resultadoCalculado;
@@ -194,27 +193,29 @@ function generarTextoCotizacion() {
     const montoFormateado = formatearMoneda(monto, origen);
 
     const esPeruVenezuelaDividir = (origen === "Perú" && destino === "Venezuela" && operacion === "dividir" && monto > 0);
-    const esVenezuelaPeruMultiplicarBCV = (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar" && montoBCVDeseado > 0);
+    const esVenezuelaPeruMultiplicar = (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar");
+    const esVenezuelaPeruMultiplicarBCV = (esVenezuelaPeruMultiplicar && montoBCVDeseado > 0);
 
-    // ✅ Título dinámico con el nombre de la empresa
-    let txt = `💸 *COTIZACIÓN ${nombreEmpresa}* 💸\n`;
+    let txt = `💸 *COTIZACIÓN${tituloEmpresa}* 💸\n`;
     txt += `-----------------------------------\n`;
 
     if (monto > 0) {
         if (esPeruVenezuelaDividir) {
-            txt += `➖ *Para recibir:* ${resFormateado}\n`;
+            // ✅ CORREGIDO: Primero lo que envía (Soles), luego lo que recibe (Bs)
+            // El equivalente BCV es el monto a recibir en Bs dividido entre la tasa BCV
             txt += `➖ *Debe enviar:* ${montoFormateado}\n`;
-            txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
+            txt += `➖ *Para recibir:* ${resFormateado}\n`;
+            txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
             txt += `➖ *Tasa:* ${tasa}\n`;
             
             if (tasaBCVActiva > 0 && resultado > 0) {
                 let equivBCV = (resultado / tasaBCVActiva).toFixed(2);
                 txt += `➖ *Equivalente BCV:* ${simBCV} ${equivBCV} ${nomBCV} (Tasa: Bs ${tasaBCVActiva.toFixed(2)})\n`;
             }
-        } else if (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar") {
+        } else if (esVenezuelaPeruMultiplicar && !montoBCVDeseado) {
             txt += `➖ *Soles a Recibir:* S/ ${monto.toFixed(2)}\n`;
-            txt += ` *De:* ${origen} ➔ *A:* ${destino}\n`;
-            txt += `➖ *Tasa:* ${tasa}\n`;
+            txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+            txt += ` *Tasa:* ${tasa}\n`;
             txt += `➖ *Debe Enviar:* Bs ${resultado.toLocaleString('es-VE', {minimumFractionDigits: 2})}\n`;
             
             if (tasaBCVActiva > 0 && resultado > 0) {
@@ -241,7 +242,7 @@ function generarTextoCotizacion() {
         const solesRedondeados = redondearAlSiguienteDiez(solesRecibidos);
         
         txt += `➖ *Enviando:* ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}\n`;
-        txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
+        txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
         txt += `➖ *Tasa de cambio:* ${tasa}\n`;
         txt += `➖ *Tasa BCV:* Bs ${tasaBCVActiva.toFixed(2)}\n`;
         txt += `➖ *Debe Enviar:* Bs ${bsNecesarios.toFixed(2)}\n`;
@@ -257,10 +258,10 @@ function generarTextoCotizacion() {
         }
         
         txt += `➖ *Para recibir:* ${simBCV} ${montoBCVDeseado.toFixed(2)} ${nomBCV}\n`;
-        txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
+        txt += ` *De:* ${origen} ➔ *A:* ${destino}\n`;
         txt += `➖ *Tasa de cambio:* ${tasa}\n`;
         txt += `➖ *Tasa BCV:* Bs ${tasaBCVActiva.toFixed(2)}\n`;
-        txt += `➖ *Debe Enviar:* ${simOrigen} ${origReq.toFixed(2)}\n`;
+        txt += ` *Debe Enviar:* ${simOrigen} ${origReq.toFixed(2)}\n`;
         txt += `➖ *Recibe en Bs:* ${formatearMoneda(bsReq, "Venezuela")}\n`;
     } else {
         txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
@@ -427,13 +428,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // ✅ Cargar nombre de la empresa guardado
     const nombreEmpresaInput = document.getElementById("nombreEmpresa");
     if (nombreEmpresaInput) {
-        const nombreGuardado = localStorage.getItem("nombreEmpresa") || "Envíos JL28";
+        const nombreGuardado = localStorage.getItem("nombreEmpresa") || "";
         nombreEmpresaInput.value = nombreGuardado;
         
-        // Guardar automáticamente cuando el usuario escriba
         nombreEmpresaInput.addEventListener("input", () => {
             localStorage.setItem("nombreEmpresa", nombreEmpresaInput.value.trim());
         });
@@ -478,7 +477,7 @@ document.addEventListener("DOMContentLoaded", () => {
         btnCopiar.addEventListener("click", () => {
             const msg = generarTextoCotizacion();
             navigator.clipboard.writeText(msg).then(() => {
-                alert(" Cotización copiada al portapapeles");
+                alert("📋 Cotización copiada al portapapeles");
             });
         });
     }
@@ -516,7 +515,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const tr = document.createElement("tr");
                     tr.style.borderBottom = "1px solid #334155";
                     tr.innerHTML = `
-                        <td style="padding: 8px; color: #f8fafc; font-size: 0.85em; font-weight: 600;">${o}  ${d}</td>
+                        <td style="padding: 8px; color: #f8fafc; font-size: 0.85em; font-weight: 600;">${o} ➔ ${d}</td>
                         <td style="padding: 8px; text-align: right;">
                             <input type="number" step="any" value="${val}" data-par="${par}" class="input-tasa-editor" style="padding: 6px 8px; font-size: 0.9em; width: 100px; text-align: right; background: #0f172a; color: #74c69d; border: 1px solid #334155; border-radius: 6px; font-weight: bold;">
                         </td>
