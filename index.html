@@ -16,147 +16,219 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Calculadora Multidivisa</h1>
-            <p class="subtitle">Calcula cuánto recibirás o debes enviar entre Perú, Venezuela, Colombia y Brasil</p>
+    <!-- ✅ MENÚ DRAWER LATERAL (Tipo app "al cambio") -->
+    <nav class="drawer" id="drawer">
+        <div class="drawer-header">
+            <div class="drawer-logo">💱</div>
+            <h2>Mi Calculadora</h2>
         </div>
-
-        <div class="card">
-
-            <!-- ✅ NUEVO: Configuración del nombre de la empresa -->
-            <div class="form-group" style="background: #1e293b; padding: 12px; border-radius: 10px; border: 1px solid #334155; margin-bottom: 15px;">
-                <label style="color: #74c69d; font-weight: bold; font-size: 0.9em;">🏢 Nombre de la Empresa (aparece en el mensaje)</label>
-                <input type="text" id="nombreEmpresa" class="form-control" placeholder="Ej: Envíos JL28" style="margin-top: 8px;">
-                <small style="color: #94a3b8; font-size: 0.75em; margin-top: 4px; display: block;">Se guarda automáticamente en tu dispositivo</small>
-            </div>
-
-            <div class="form-group">
-                <label>País Origen</label>
-                <select id="origen" class="form-control">
-                    <option value="Perú">Perú</option>
-                    <option value="Venezuela" selected>Venezuela</option>
-                    <option value="Colombia">Colombia</option>
-                    <option value="Brasil">Brasil</option>
-                </select>
-            </div>
-
-            <div class="swap-container">
-                <button id="swapBtn" class="btn-swap" type="button" title="Intercambiar países" aria-label="Intercambiar países">⇆</button>
-            </div>
-
-            <div class="form-group">
-                <label>País Destino</label>
-                <select id="destino" class="form-control">
-                    <option value="Perú" selected>Perú</option>
-                    <option value="Venezuela">Venezuela</option>
-                    <option value="Colombia">Colombia</option>
-                    <option value="Brasil">Brasil</option>
-                </select>
-            </div>
-
-            <!-- Sección BCV -->
-            <div id="bcvSection" class="bcv-section" style="display: none;">
-                <div class="bcv-grid" onclick="consultarBCV()" style="cursor: pointer;" title="Toca para actualizar tasa BCV">
-                    <div class="bcv-card usd">
-                        <span class="bcv-label">🇺🇸 USD BCV 🔄</span>
-                        <span class="bcv-value" id="bcvUsd">Cargando...</span>
-                    </div>
-                    <div class="bcv-card eur">
-                        <span class="bcv-label">🇪 EUR BCV 🔄</span>
-                        <span class="bcv-value" id="bcvEur">Cargando...</span>
-                    </div>
-                </div>
-
-                <div class="form-group" style="margin-top: 10px;">
-                    <label>Moneda BCV para equivalencia</label>
-                    <select id="monedaBCV" class="form-control">
-                        <option value="USD">💵 Dólar (USD)</option>
-                        <option value="EUR"> Euro (EUR)</option>
-                    </select>
-                </div>
-
-                <div class="form-group" style="margin-top: 10px;">
-                    <label>🎯 ¿Deseas recibir un monto exacto en USD/EUR? (Opcional)</label>
-                    <input type="number" id="montoBCVDeseado" class="form-control" placeholder="Ej: 10" step="any">
-                </div>
-            </div>
-
-            <div class="form-group" id="montoGroup">
-                <label id="lblMonto">Monto a Enviar / Convertir (Bs)</label>
-                <input type="number" id="monto" class="form-control" placeholder="0.00" step="any">
-            </div>
-
-            <div class="form-group">
-                <label>Operación</label>
-                <select id="operacion" class="form-control">
-                    <option value="multiplicar">Multiplicar (Monto × Tasa)</option>
-                    <option value="dividir" selected>Dividir (Monto ÷ Tasa)</option>
-                </select>
-            </div>
-
-            <div class="tasa-info-card" id="tasaInfo">
-                Cargando tasa...
-            </div>
-
-            <div class="result-box">
-                <span class="result-title" id="lblResultadoTitle">Resultado</span>
-                <div class="result-amount" id="resultado">S/ 0,00</div>
-                <div id="bcvEquivalencia" style="display: none; margin-top: 8px; font-size: 0.95em; color: #74c69d; font-weight: 600;"></div>
-            </div>
-
-            <!-- BOTONES DE ACCIÓN RÁPIDA -->
-            <button class="btn-whatsapp" id="btnWhatsapp">📲 Compartir Cálculo por WhatsApp</button>
-            <button class="btn-secondary" id="btnCopiarTransaccion" style="margin-top: 8px; width: 100%;">📋 Copiar Cálculo / Cotización</button>
-
-            <!-- VER TABLA DE TASAS CRUZADAS -->
-            <button type="button" class="btn-secondary" id="verTasasBtn" style="margin-top: 15px; width: 100%; cursor: pointer;">Ver tabla de tasas</button>
-
-            <div id="tablaTasas" class="modal-tasas" style="display: none; margin-top: 15px; background: #1e293b; padding: 15px; border-radius: 12px; border: 1px solid #334155;">
-                <h3 style="color: #74c69d; margin-bottom: 12px; font-size: 1.1em; text-align: center;">Tabla de Tasas Cruzadas</h3>
-                <div class="table-container">
-                    <table style="width: 100%; text-align: left; border-collapse: collapse;">
-                        <thead>
-                            <tr style="border-bottom: 1px solid #334155; color: #b7e4c7;">
-                                <th style="padding: 8px;">Origen</th>
-                                <th style="padding: 8px;">Destino</th>
-                                <th style="padding: 8px; text-align: right;">Tasa</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tablaTasasContent"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- CONFIGURACIÓN DE TASAS LOCALES -->
-            <button type="button" id="btnAbrirEditor" class="btn-secondary" style="margin-top: 15px; width: 100%; background: #10b981; color: #ffffff; font-weight: bold; padding: 12px; border-radius: 10px; border: none; cursor: pointer;">
-                ⚙️ Configurar Tasas Locales
-            </button>
-
-            <div id="seccionEditorTasas" style="display: none; background: #1e293b; padding: 15px; border-radius: 12px; margin-top: 15px; border: 1px solid #334155;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <h3 style="color: #74c69d; font-size: 1em; margin: 0;">⚙️ Modificar Tasas Locales</h3>
-                    <button type="button" id="btnCerrarEditor" style="background: transparent; border: none; color: #94a3b8; font-size: 1.2em; cursor: pointer;" aria-label="Cerrar editor">✖</button>
-                </div>
-                <p style="font-size: 0.8em; color: #94a3b8; margin-bottom: 12px;">
-                    Cambia la tasa de cualquier par de países. Se guardará en tu teléfono y la calculadora usará ese valor automáticamente.
-                </p>
-                <div style="max-height: 280px; overflow-y: auto; padding-right: 5px;">
-                    <table style="width: 100%; text-align: left; border-collapse: collapse;">
-                        <thead>
-                            <tr style="border-bottom: 1px solid #334155; color: #b7e4c7; position: sticky; top: 0; background: #1e293b;">
-                                <th style="padding: 6px; font-size: 0.85em;">Origen ➔ Destino</th>
-                                <th style="padding: 6px; font-size: 0.85em; text-align: right;">Tasa</th>
-                            </tr>
-                        </thead>
-                        <tbody id="listaTasasEditables"></tbody>
-                    </table>
-                </div>
-                <button type="button" id="btnGuardarTodasLasTasas" style="margin-top: 12px; width: 100%; background: #10b981; color: white; padding: 10px; font-weight: bold; border-radius: 8px; border: none; cursor: pointer;">
-                    💾 Guardar Tasas en el Teléfono
+        <ul class="drawer-menu">
+            <li>
+                <button class="drawer-item active" data-view="calculadora">
+                    <span class="drawer-icon"></span>
+                    <span>Calculadora</span>
                 </button>
+            </li>
+            <li>
+                <button class="drawer-item" data-view="configuracion">
+                    <span class="drawer-icon">⚙️</span>
+                    <span>Configuración</span>
+                </button>
+            </li>
+        </ul>
+        <div class="drawer-footer">
+            <p class="drawer-version">v1.0</p>
+        </div>
+    </nav>
+
+    <!-- ✅ FONDO OSCURO CUANDO EL DRAWER ESTÁ ABIERTO -->
+    <div class="drawer-overlay" id="drawerOverlay"></div>
+
+    <!-- ✅ CONTENIDO PRINCIPAL -->
+    <div class="main-content">
+        <!-- Botón hamburguesa -->
+        <button class="hamburger" id="hamburgerBtn" aria-label="Abrir menú">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+
+        <div class="container">
+            <!-- ========================================
+                 VISTA: CALCULADORA
+                 ======================================== -->
+            <div id="view-calculadora" class="view activa">
+                <div class="header">
+                    <h1>Calculadora Multidivisa</h1>
+                    <p class="subtitle">Calcula cuánto recibirás o debes enviar entre Perú, Venezuela, Colombia y Brasil</p>
+                </div>
+
+                <div class="card">
+                    <div class="form-group">
+                        <label>País Origen</label>
+                        <select id="origen" class="form-control">
+                            <option value="Perú">Perú</option>
+                            <option value="Venezuela" selected>Venezuela</option>
+                            <option value="Colombia">Colombia</option>
+                            <option value="Brasil">Brasil</option>
+                        </select>
+                    </div>
+
+                    <div class="swap-container">
+                        <button id="swapBtn" class="btn-swap" type="button" title="Intercambiar países" aria-label="Intercambiar países">⇆</button>
+                    </div>
+
+                    <div class="form-group">
+                        <label>País Destino</label>
+                        <select id="destino" class="form-control">
+                            <option value="Perú" selected>Perú</option>
+                            <option value="Venezuela">Venezuela</option>
+                            <option value="Colombia">Colombia</option>
+                            <option value="Brasil">Brasil</option>
+                        </select>
+                    </div>
+
+                    <!-- Sección BCV -->
+                    <div id="bcvSection" class="bcv-section" style="display: none;">
+                        <div class="bcv-grid">
+                            <div class="bcv-card usd" onclick="consultarBCV()" style="cursor: pointer;" title="Toca para actualizar tasa BCV">
+                                <span class="bcv-label">🇺🇸 USD BCV 🔄</span>
+                                <span class="bcv-value" id="bcvUsd">Cargando...</span>
+                                <span class="bcv-badge" id="bcvUsdBadge"></span>
+                            </div>
+                            <div class="bcv-card eur" onclick="consultarBCV()" style="cursor: pointer;" title="Toca para actualizar tasa BCV">
+                                <span class="bcv-label">🇪 EUR BCV 🔄</span>
+                                <span class="bcv-value" id="bcvEur">Cargando...</span>
+                                <span class="bcv-badge" id="bcvEurBadge"></span>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-top: 10px;">
+                            <label>Moneda BCV para equivalencia</label>
+                            <select id="monedaBCV" class="form-control">
+                                <option value="USD">💵 Dólar (USD)</option>
+                                <option value="EUR">💶 Euro (EUR)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" style="margin-top: 10px;">
+                            <label>🎯 ¿Deseas recibir un monto exacto en USD/EUR? (Opcional)</label>
+                            <input type="number" id="montoBCVDeseado" class="form-control" placeholder="Ej: 10" step="any">
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="montoGroup">
+                        <label id="lblMonto">Monto a Enviar / Convertir (Bs)</label>
+                        <input type="number" id="monto" class="form-control" placeholder="0.00" step="any">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Operación</label>
+                        <select id="operacion" class="form-control">
+                            <option value="multiplicar">Multiplicar (Monto × Tasa)</option>
+                            <option value="dividir" selected>Dividir (Monto ÷ Tasa)</option>
+                        </select>
+                    </div>
+
+                    <div class="tasa-info-card" id="tasaInfo">
+                        Cargando tasa...
+                    </div>
+
+                    <div class="result-box">
+                        <span class="result-title" id="lblResultadoTitle">Resultado</span>
+                        <div class="result-amount" id="resultado">S/ 0,00</div>
+                        <div id="bcvEquivalencia" style="display: none; margin-top: 8px; font-size: 0.95em; color: #74c69d; font-weight: 600;"></div>
+                    </div>
+
+                    <!-- BOTONES DE ACCIÓN RÁPIDA -->
+                    <button class="btn-whatsapp" id="btnWhatsapp">📲 Compartir Cálculo por WhatsApp</button>
+                    <button class="btn-secondary" id="btnCopiarTransaccion" style="margin-top: 8px; width: 100%;"> Copiar Cálculo / Cotización</button>
+
+                    <!-- VER TABLA DE TASAS CRUZADAS -->
+                    <button type="button" class="btn-secondary" id="verTasasBtn" style="margin-top: 15px; width: 100%; cursor: pointer;">Ver tabla de tasas</button>
+
+                    <div id="tablaTasas" class="modal-tasas" style="display: none; margin-top: 15px; background: #1e293b; padding: 15px; border-radius: 12px; border: 1px solid #334155;">
+                        <h3 style="color: #74c69d; margin-bottom: 12px; font-size: 1.1em; text-align: center;">Tabla de Tasas Cruzadas</h3>
+                        <div class="table-container">
+                            <table style="width: 100%; text-align: left; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid #334155; color: #b7e4c7;">
+                                        <th style="padding: 8px;">Origen</th>
+                                        <th style="padding: 8px;">Destino</th>
+                                        <th style="padding: 8px; text-align: right;">Tasa</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaTasasContent"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
 
+            <!-- ========================================
+                 VISTA: CONFIGURACIÓN
+                 ======================================== -->
+            <div id="view-configuracion" class="view">
+                <div class="header">
+                    <h1>⚙️ Configuración</h1>
+                    <p class="subtitle">Personaliza tu calculadora</p>
+                </div>
+
+                <div class="card">
+                    <!-- 1. Nombre de la empresa -->
+                    <div class="config-section">
+                        <h3 class="config-title">🏢 Nombre de la Empresa</h3>
+                        <p class="config-desc">Aparecerá en el mensaje de WhatsApp</p>
+                        <input type="text" id="nombreEmpresa" class="form-control" placeholder="Ej: Envíos JL28">
+                    </div>
+
+                    <!-- 2. Tasas BCV Manuales -->
+                    <div class="config-section">
+                        <h3 class="config-title"> Tasas BCV Manuales</h3>
+                        <p class="config-desc">Si escribes un valor, se usará ese. Si lo borras, volverá a usar el de la API automáticamente.</p>
+                        
+                        <div class="bcv-manual-grid">
+                            <div class="bcv-manual-card">
+                                <label>🇸 USD BCV Manual</label>
+                                <input type="number" id="bcvUsdManual" class="form-control" placeholder="Automático (API)" step="any">
+                                <small class="config-hint" id="bcvUsdHint">Usando valor de la API</small>
+                            </div>
+                            <div class="bcv-manual-card">
+                                <label>🇪🇺 EUR BCV Manual</label>
+                                <input type="number" id="bcvEurManual" class="form-control" placeholder="Automático (API)" step="any">
+                                <small class="config-hint" id="bcvEurHint">Usando valor de la API</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Tasas de países -->
+                    <div class="config-section">
+                        <h3 class="config-title">💰 Tasas entre Países</h3>
+                        <p class="config-desc">Modifica las tasas de conversión entre países. Se guardan en tu dispositivo.</p>
+                        <div class="tasas-scroll">
+                            <table class="tasas-table">
+                                <thead>
+                                    <tr>
+                                        <th>Ruta</th>
+                                        <th style="text-align: right;">Tasa</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="listaTasasEditables"></tbody>
+                            </table>
+                        </div>
+                        <button type="button" id="btnGuardarTodasLasTasas" class="btn-guardar">
+                            💾 Guardar Todas las Tasas
+                        </button>
+                    </div>
+
+                    <!-- 4. Botón para resetear todo -->
+                    <div class="config-section">
+                        <button type="button" id="btnResetConfig" class="btn-reset">
+                            🔄 Restaurar Valores Predeterminados
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
