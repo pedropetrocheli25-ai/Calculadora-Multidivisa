@@ -1,14 +1,189 @@
 /* =========================================
-   ESTILOS GLOBALES Y FONDO
+   ESTILOS GLOBALES
    ========================================= */
+* {
+    box-sizing: border-box;
+}
+
 body {
-    background-color: #0b1120; /* Fondo azul muy oscuro, casi negro */
-    color: #f1f5f9; /* Texto blanco suave */
+    background-color: #0b1120;
+    color: #f1f5f9;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     margin: 0;
-    padding: 20px 15px;
+    padding: 0;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+}
+
+/* =========================================
+   MENÚ DRAWER LATERAL (Tipo app "al cambio")
+   ========================================= */
+.drawer {
+    position: fixed;
+    top: 0;
+    left: -280px;
+    width: 280px;
+    height: 100vh;
+    background: #1a1a1a;
+    z-index: 1001;
+    transition: left 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 5px 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.drawer.open {
+    left: 0;
+}
+
+.drawer-header {
+    padding: 24px 20px;
+    border-bottom: 1px solid #333;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.drawer-logo {
+    font-size: 2em;
+}
+
+.drawer-header h2 {
+    color: #ffffff;
+    margin: 0;
+    font-size: 1.2em;
+    font-weight: 600;
+}
+
+.drawer-menu {
+    list-style: none;
+    padding: 12px;
+    margin: 0;
+    flex: 1;
+}
+
+.drawer-menu li {
+    margin-bottom: 4px;
+}
+
+.drawer-item {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: #e0e0e0;
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-size: 1em;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.2s;
+}
+
+.drawer-item:hover {
+    background: #2a2a2a;
+}
+
+.drawer-item.active {
+    background: #2d5a2d;
+    color: #4ade80;
+}
+
+.drawer-icon {
+    font-size: 1.2em;
+}
+
+.drawer-footer {
+    padding: 16px 20px;
+    border-top: 1px solid #333;
+}
+
+.drawer-version {
+    color: #666;
+    font-size: 0.8em;
+    margin: 0;
+}
+
+/* =========================================
+   OVERLAY DEL DRAWER
+   ========================================= */
+.drawer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.drawer-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* =========================================
+   CONTENIDO PRINCIPAL
+   ========================================= */
+.main-content {
+    min-height: 100vh;
+    transition: transform 0.3s ease;
+}
+
+/* =========================================
+   BOTÓN HAMBURGUESA
+   ========================================= */
+.hamburger {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    width: 44px;
+    height: 44px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    z-index: 999;
+    transition: all 0.3s ease;
+    padding: 0;
+}
+
+.hamburger:hover {
+    background: #334155;
+    transform: scale(1.05);
+}
+
+.hamburger span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: #10b981;
+    border-radius: 2px;
+    transition: all 0.3s ease;
+}
+
+/* =========================================
+   VISTAS (Calculadora / Configuración)
+   ========================================= */
+.view {
+    display: none;
+    padding: 80px 15px 20px 15px;
+}
+
+.view.activa {
+    display: block;
 }
 
 .container {
@@ -36,10 +211,10 @@ body {
 }
 
 /* =========================================
-   TARJETA PRINCIPAL (CARD)
+   TARJETA PRINCIPAL
    ========================================= */
 .card {
-    background: #1e293b; /* Gris azulado oscuro */
+    background: #1e293b;
     border-radius: 24px;
     padding: 24px;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
@@ -63,7 +238,7 @@ body {
 
 .form-control {
     width: 100%;
-    background: #0f172a; /* Fondo más oscuro para los inputs */
+    background: #0f172a;
     border: 1px solid #334155;
     color: #ffffff;
     padding: 16px;
@@ -71,17 +246,15 @@ body {
     font-size: 16px;
     box-sizing: border-box;
     transition: all 0.3s ease;
-    appearance: none; /* Quita el estilo por defecto del navegador */
+    appearance: none;
 }
 
-/* Efecto al tocar o hacer clic en un input */
 .form-control:focus {
-    border-color: #10b981; /* Borde verde */
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2); /* Resplandor verde sutil */
+    border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
     outline: none;
 }
 
-/* Flecha personalizada para los select */
 select.form-control {
     background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
     background-repeat: no-repeat;
@@ -91,7 +264,7 @@ select.form-control {
 }
 
 /* =========================================
-   BOTÓN DE INTERCAMBIO (SWAP)
+   BOTÓN SWAP
    ========================================= */
 .swap-container {
     display: flex;
@@ -120,7 +293,7 @@ select.form-control {
 }
 
 /* =========================================
-   SECCIÓN BCV (Tasas de cambio)
+   SECCIÓN BCV
    ========================================= */
 .bcv-grid {
     display: grid;
@@ -136,6 +309,7 @@ select.form-control {
     padding: 12px;
     text-align: center;
     transition: transform 0.2s;
+    position: relative;
 }
 
 .bcv-card:hover {
@@ -159,8 +333,16 @@ select.form-control {
     color: #ffffff;
 }
 
+.bcv-badge {
+    display: block;
+    font-size: 0.7em;
+    color: #fbbf24;
+    margin-top: 4px;
+    font-weight: 600;
+}
+
 /* =========================================
-   TARJETA DE INFORMACIÓN DE TASA
+   TARJETA DE TASA
    ========================================= */
 .tasa-info-card {
     background: #0f172a;
@@ -174,15 +356,15 @@ select.form-control {
 }
 
 /* =========================================
-   CAJA DE RESULTADO (La caja verde grande)
+   CAJA DE RESULTADO
    ========================================= */
 .result-box {
-    background: linear-gradient(145deg, #064e3b, #022c22); /* Degradado verde elegante */
+    background: linear-gradient(145deg, #064e3b, #022c22);
     border: 1px solid #10b981;
     border-radius: 20px;
     padding: 24px;
     text-align: center;
-    box-shadow: 0 10px 25px rgba(16, 185, 129, 0.15); /* Resplandor verde */
+    box-shadow: 0 10px 25px rgba(16, 185, 129, 0.15);
     margin: 20px 0;
 }
 
@@ -198,13 +380,13 @@ select.form-control {
 .result-amount {
     font-size: 2.5em;
     font-weight: 800;
-    color: #34d399; /* Verde brillante */
+    color: #34d399;
     margin: 10px 0;
     text-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 /* =========================================
-   BOTONES DE ACCIÓN
+   BOTONES
    ========================================= */
 button {
     cursor: pointer;
@@ -212,7 +394,7 @@ button {
 }
 
 .btn-whatsapp {
-    background: #25D366; /* Verde oficial de WhatsApp */
+    background: #25D366;
     color: #000000;
     font-weight: 700;
     font-size: 1.05em;
@@ -231,10 +413,6 @@ button {
 .btn-whatsapp:hover {
     background: #20bd5a;
     transform: translateY(-2px);
-}
-
-.btn-whatsapp:active {
-    transform: scale(0.98);
 }
 
 .btn-secondary {
@@ -256,16 +434,167 @@ button {
     background: #475569;
 }
 
-.btn-secondary:active {
-    transform: scale(0.98);
+/* =========================================
+   SECCIONES DE CONFIGURACIÓN
+   ========================================= */
+.config-section {
+    margin-bottom: 28px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid #334155;
+}
+
+.config-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.config-title {
+    color: #10b981;
+    font-size: 1.1em;
+    margin: 0 0 8px 0;
+    font-weight: 600;
+}
+
+.config-desc {
+    color: #94a3b8;
+    font-size: 0.85em;
+    margin: 0 0 16px 0;
+}
+
+.config-hint {
+    display: block;
+    color: #64748b;
+    font-size: 0.75em;
+    margin-top: 6px;
 }
 
 /* =========================================
-   RESPONSIVE (Para que se vea bien en PC también)
+   BCV MANUAL GRID
+   ========================================= */
+.bcv-manual-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.bcv-manual-card {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.bcv-manual-card label {
+    display: block;
+    font-size: 0.8em;
+    color: #94a3b8;
+    margin-bottom: 8px;
+}
+
+.bcv-manual-card .form-control {
+    padding: 10px;
+    font-size: 14px;
+}
+
+/* =========================================
+   TABLA DE TASAS
+   ========================================= */
+.tasas-scroll {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+}
+
+.tasas-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.tasas-table th {
+    padding: 10px;
+    text-align: left;
+    color: #b7e4c7;
+    font-size: 0.85em;
+    border-bottom: 1px solid #334155;
+    position: sticky;
+    top: 0;
+    background: #1e293b;
+}
+
+.tasas-table th:last-child {
+    text-align: right;
+}
+
+.tasas-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #1e293b;
+    color: #f8fafc;
+    font-size: 0.85em;
+}
+
+.tasas-table td:last-child {
+    text-align: right;
+}
+
+.tasas-table input {
+    width: 90px;
+    background: #0f172a;
+    color: #74c69d;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 0.9em;
+    text-align: right;
+    font-weight: bold;
+}
+
+.tasas-table input:focus {
+    border-color: #10b981;
+    outline: none;
+}
+
+/* =========================================
+   BOTONES DE CONFIGURACIÓN
+   ========================================= */
+.btn-guardar {
+    background: #10b981;
+    color: white;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    width: 100%;
+    font-weight: bold;
+    font-size: 1em;
+    transition: all 0.2s;
+}
+
+.btn-guardar:hover {
+    background: #059669;
+}
+
+.btn-reset {
+    background: #dc2626;
+    color: white;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    width: 100%;
+    font-weight: bold;
+    font-size: 1em;
+    transition: all 0.2s;
+}
+
+.btn-reset:hover {
+    background: #b91c1c;
+}
+
+/* =========================================
+   RESPONSIVE
    ========================================= */
 @media (min-width: 600px) {
-    body {
-        padding: 40px 20px;
+    .view {
+        padding: 80px 20px 20px 20px;
     }
     .card {
         padding: 32px;
