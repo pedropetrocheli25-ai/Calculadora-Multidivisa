@@ -13,6 +13,8 @@ let tasasLocales = JSON.parse(localStorage.getItem("tasasLocales")) || {};
 let tasaUsdBCV = 0;
 let tasaEurBCV = 0;
 let ultimaActualizacionBCV = null;
+let bcvUsdManual = parseFloat(localStorage.getItem("bcvUsdManual")) || 0;
+let bcvEurManual = parseFloat(localStorage.getItem("bcvEurManual")) || 0;
 
 Object.keys(TASAS_DEFAULT).forEach(k => {
     if (!tasasLocales[k] || isNaN(parseFloat(tasasLocales[k])) || parseFloat(tasasLocales[k]) <= 0) {
@@ -55,6 +57,75 @@ function obtenerNombreEmpresa() {
     return nombre.trim().toUpperCase();
 }
 
+// ✅ FUNCIONES DEL DRAWER
+function abrirDrawer() {
+    document.getElementById('drawer').classList.add('open');
+    document.getElementById('drawerOverlay').classList.add('active');
+}
+
+function cerrarDrawer() {
+    document.getElementById('drawer').classList.remove('open');
+    document.getElementById('drawerOverlay').classList.remove('active');
+}
+
+function cambiarVista(vista) {
+    // Ocultar todas las vistas
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('activa'));
+    // Mostrar la vista seleccionada
+    document.getElementById(`view-${vista}`).classList.add('activa');
+    
+    // Actualizar menú activo
+    document.querySelectorAll('.drawer-item').forEach(item => item.classList.remove('active'));
+    document.querySelector(`[data-view="${vista}"]`).classList.add('active');
+    
+    // Cerrar drawer
+    cerrarDrawer();
+    
+    // Si es configuración, renderizar tabla de tasas
+    if (vista === 'configuracion') {
+        renderTablaEditor();
+    }
+    
+    // Scroll al top
+    window.scrollTo(0, 0);
+}
+
+// ✅ ACTUALIZAR INDICADORES DE BCV MANUAL
+function actualizarIndicadoresBCV() {
+    const badgeUsd = document.getElementById('bcvUsdBadge');
+    const badgeEur = document.getElementById('bcvEurBadge');
+    const hintUsd = document.getElementById('bcvUsdHint');
+    const hintEur = document.getElementById('bcvEurHint');
+    
+    if (badgeUsd) {
+        if (bcvUsdManual > 0) {
+            badgeUsd.textContent = '✏️ Manual';
+            badgeUsd.style.color = '#fbbf24';
+        } else {
+            badgeUsd.textContent = '';
+        }
+    }
+    
+    if (badgeEur) {
+        if (bcvEurManual > 0) {
+            badgeEur.textContent = '✏️ Manual';
+            badgeEur.style.color = '#fbbf24';
+        } else {
+            badgeEur.textContent = '';
+        }
+    }
+    
+    if (hintUsd) {
+        hintUsd.textContent = bcvUsdManual > 0 ? 'Usando valor manual' : 'Usando valor de la API';
+        hintUsd.style.color = bcvUsdManual > 0 ? '#fbbf24' : '#64748b';
+    }
+    
+    if (hintEur) {
+        hintEur.textContent = bcvEurManual > 0 ? 'Usando valor manual' : 'Usando valor de la API';
+        hintEur.style.color = bcvEurManual > 0 ? '#fbbf24' : '#64748b';
+    }
+}
+
 function ejecutarCalculo() {
     const origen = document.getElementById("origen")?.value || "Perú";
     const destino = document.getElementById("destino")?.value || "Venezuela";
@@ -64,7 +135,14 @@ function ejecutarCalculo() {
     const montoInput = document.getElementById("monto");
     const tasa = obtenerTasaActiva(origen, destino);
 
-    const tasaBCVActiva = (monedaBCV === "EUR") ? tasaEurBCV : tasaUsdBCV;
+    // ✅ Usar tasa manual si existe, sino usar la de la API
+    let tasaBCVActiva = (monedaBCV === "EUR") ? tasaEurBCV : tasaUsdBCV;
+    if (monedaBCV === "USD" && bcvUsdManual > 0) {
+        tasaBCVActiva = bcvUsdManual;
+    } else if (monedaBCV === "EUR" && bcvEurManual > 0) {
+        tasaBCVActiva = bcvEurManual;
+    }
+
     const simBCV = (monedaBCV === "EUR") ? "€" : "$";
     const nomBCV = (monedaBCV === "EUR") ? "EUR" : "USD";
     const simOrigen = origen === "Perú" ? "S/" : (origen === "Venezuela" ? "Bs" : (origen === "Colombia" ? "COP $" : "R$"));
@@ -173,7 +251,14 @@ function generarTextoCotizacion() {
     const operacion = document.getElementById("operacion")?.value || "dividir";
     const tasa = obtenerTasaActiva(origen, destino);
     const monedaBCV = document.getElementById("monedaBCV")?.value || "USD";
-    const tasaBCVActiva = (monedaBCV === "EUR") ? tasaEurBCV : tasaUsdBCV;
+    
+    let tasaBCVActiva = (monedaBCV === "EUR") ? tasaEurBCV : tasaUsdBCV;
+    if (monedaBCV === "USD" && bcvUsdManual > 0) {
+        tasaBCVActiva = bcvUsdManual;
+    } else if (monedaBCV === "EUR" && bcvEurManual > 0) {
+        tasaBCVActiva = bcvEurManual;
+    }
+    
     const simBCV = (monedaBCV === "EUR") ? "€" : "$";
     const nomBCV = (monedaBCV === "EUR") ? "EUR" : "USD";
 
@@ -196,18 +281,14 @@ function generarTextoCotizacion() {
     const esVenezuelaPeruMultiplicar = (origen === "Venezuela" && destino === "Perú" && operacion === "multiplicar");
     const esVenezuelaPeruMultiplicarBCV = (esVenezuelaPeruMultiplicar && montoBCVDeseado > 0);
 
-    let txt = `💸 *COTIZACIÓN${tituloEmpresa}* 💸\n`;
+    let txt = `💸 *COTIZACIÓN${tituloEmpresa}* \n`;
     txt += `-----------------------------------\n`;
 
     if (monto > 0) {
         if (esPeruVenezuelaDividir) {
-            // ✅ CORREGIDO: 
-            // - resultado = Soles que debe enviar (formateado como S/ con moneda de origen)
-            // - monto = Bs que quiere que reciban (formateado como Bs con moneda de destino)
-            // - BCV se calcula sobre los Bs a recibir (monto)
             txt += `➖ *Debe Enviar:* ${formatearMoneda(resultado, origen)}\n`;
             txt += `➖ *Para recibir:* ${formatearMoneda(monto, destino)}\n`;
-            txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
+            txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
             txt += `➖ *Tasa:* ${tasa}\n`;
             
             if (tasaBCVActiva > 0 && monto > 0) {
@@ -216,7 +297,7 @@ function generarTextoCotizacion() {
             }
         } else if (esVenezuelaPeruMultiplicar && !montoBCVDeseado) {
             txt += `➖ *Soles a Recibir:* S/ ${monto.toFixed(2)}\n`;
-            txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
+            txt += ` *De:* ${origen} ➔ *A:* ${destino}\n`;
             txt += `➖ *Tasa:* ${tasa}\n`;
             txt += `➖ *Debe Enviar:* Bs ${resultado.toLocaleString('es-VE', {minimumFractionDigits: 2})}\n`;
             
@@ -226,7 +307,7 @@ function generarTextoCotizacion() {
             }
         } else {
             txt += `➖ *Enviar:* ${montoFormateado}\n`;
-            txt += `➖ *De:* ${origen}  *A:* ${destino}\n`;
+            txt += `➖ *De:* ${origen} ➔ *A:* ${destino}\n`;
             txt += `➖ *Tasa:* ${tasa}\n`;
             txt += `➖ *Recibe:* ${resFormateado}\n`;
             
@@ -294,8 +375,11 @@ async function consultarBCV() {
         if (resUsd.ok) {
             const dataUsd = await resUsd.json();
             if (dataUsd?.monitors?.bcv?.price) {
-                tasaUsdBCV = parseFloat(dataUsd.monitors.bcv.price);
-                if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
+                // Solo actualizar si no hay valor manual
+                if (bcvUsdManual === 0) {
+                    tasaUsdBCV = parseFloat(dataUsd.monitors.bcv.price);
+                }
+                if (elUsd) elUsd.innerText = `Bs ${(bcvUsdManual > 0 ? bcvUsdManual : parseFloat(dataUsd.monitors.bcv.price)).toFixed(2)}`;
                 usdObtenido = true;
             }
         }
@@ -303,8 +387,10 @@ async function consultarBCV() {
         if (resEur.ok) {
             const dataEur = await resEur.json();
             if (dataEur?.monitors?.bcv?.price) {
-                tasaEurBCV = parseFloat(dataEur.monitors.bcv.price);
-                if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)}`;
+                if (bcvEurManual === 0) {
+                    tasaEurBCV = parseFloat(dataEur.monitors.bcv.price);
+                }
+                if (elEur) elEur.innerText = `Bs ${(bcvEurManual > 0 ? bcvEurManual : parseFloat(dataEur.monitors.bcv.price)).toFixed(2)}`;
                 eurObtenido = true;
             }
         }
@@ -319,8 +405,10 @@ async function consultarBCV() {
                 if (resUsd.ok) {
                     const dataUsd = await resUsd.json();
                     if (dataUsd?.monitors?.bcv?.price) {
-                        tasaUsdBCV = parseFloat(dataUsd.monitors.bcv.price);
-                        if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
+                        if (bcvUsdManual === 0) {
+                            tasaUsdBCV = parseFloat(dataUsd.monitors.bcv.price);
+                        }
+                        if (elUsd) elUsd.innerText = `Bs ${(bcvUsdManual > 0 ? bcvUsdManual : parseFloat(dataUsd.monitors.bcv.price)).toFixed(2)}`;
                         usdObtenido = true;
                     }
                 }
@@ -331,8 +419,10 @@ async function consultarBCV() {
                 if (resEur.ok) {
                     const dataEur = await resEur.json();
                     if (dataEur?.monitors?.bcv?.price) {
-                        tasaEurBCV = parseFloat(dataEur.monitors.bcv.price);
-                        if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)}`;
+                        if (bcvEurManual === 0) {
+                            tasaEurBCV = parseFloat(dataEur.monitors.bcv.price);
+                        }
+                        if (elEur) elEur.innerText = `Bs ${(bcvEurManual > 0 ? bcvEurManual : parseFloat(dataEur.monitors.bcv.price)).toFixed(2)}`;
                         eurObtenido = true;
                     }
                 }
@@ -349,8 +439,10 @@ async function consultarBCV() {
                 if (resUsd.ok) {
                     const dataUsd = await resUsd.json();
                     if (dataUsd?.promedio) {
-                        tasaUsdBCV = parseFloat(dataUsd.promedio);
-                        if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
+                        if (bcvUsdManual === 0) {
+                            tasaUsdBCV = parseFloat(dataUsd.promedio);
+                        }
+                        if (elUsd) elUsd.innerText = `Bs ${(bcvUsdManual > 0 ? bcvUsdManual : parseFloat(dataUsd.promedio)).toFixed(2)}`;
                         usdObtenido = true;
                     }
                 }
@@ -361,8 +453,10 @@ async function consultarBCV() {
                 if (resEur.ok) {
                     const dataEur = await resEur.json();
                     if (dataEur?.promedio) {
-                        tasaEurBCV = parseFloat(dataEur.promedio);
-                        if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)}`;
+                        if (bcvEurManual === 0) {
+                            tasaEurBCV = parseFloat(dataEur.promedio);
+                        }
+                        if (elEur) elEur.innerText = `Bs ${(bcvEurManual > 0 ? bcvEurManual : parseFloat(dataEur.promedio)).toFixed(2)}`;
                         eurObtenido = true;
                     }
                 }
@@ -385,10 +479,10 @@ async function consultarBCV() {
     } else {
         const cache = JSON.parse(localStorage.getItem("cacheBCV") || "{}");
         if (cache.usd && cache.eur) {
-            tasaUsdBCV = cache.usd;
-            tasaEurBCV = cache.eur;
-            if (elUsd) elUsd.innerText = `Bs ${tasaUsdBCV.toFixed(2)}`;
-            if (elEur) elEur.innerText = `Bs ${tasaEurBCV.toFixed(2)}`;
+            if (bcvUsdManual === 0) tasaUsdBCV = cache.usd;
+            if (bcvEurManual === 0) tasaEurBCV = cache.eur;
+            if (elUsd) elUsd.innerText = `Bs ${(bcvUsdManual > 0 ? bcvUsdManual : tasaUsdBCV).toFixed(2)}`;
+            if (elEur) elEur.innerText = `Bs ${(bcvEurManual > 0 ? bcvEurManual : tasaEurBCV).toFixed(2)}`;
             const cacheDate = new Date(cache.timestamp);
             ultimaActualizacionBCV = `Caché ${cacheDate.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })}`;
         }
@@ -418,27 +512,95 @@ function actualizarTablaCruzadaModal() {
     });
 }
 
+function renderTablaEditor() {
+    const listaTabla = document.getElementById("listaTasasEditables");
+    if (!listaTabla) return;
+    listaTabla.innerHTML = "";
+    PAISES.forEach(o => {
+        PAISES.forEach(d => {
+            if (normalizar(o) !== normalizar(d)) {
+                const par = obtenerClave(o, d);
+                const val = obtenerTasaActiva(o, d);
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${o} ➔ ${d}</td>
+                    <td><input type="number" step="any" value="${val}" data-par="${par}" class="input-tasa-editor"></td>
+                `;
+                listaTabla.appendChild(tr);
+            }
+        });
+    });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     const cache = JSON.parse(localStorage.getItem("cacheBCV") || "{}");
     if (cache.usd && cache.eur && cache.timestamp) {
         const cacheAge = Date.now() - new Date(cache.timestamp).getTime();
         if (cacheAge < 3600000) {
-            tasaUsdBCV = cache.usd;
-            tasaEurBCV = cache.eur;
+            if (bcvUsdManual === 0) tasaUsdBCV = cache.usd;
+            if (bcvEurManual === 0) tasaEurBCV = cache.eur;
             const cacheDate = new Date(cache.timestamp);
             ultimaActualizacionBCV = cacheDate.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
         }
     }
 
+    // ✅ Cargar valores de configuración
     const nombreEmpresaInput = document.getElementById("nombreEmpresa");
     if (nombreEmpresaInput) {
-        const nombreGuardado = localStorage.getItem("nombreEmpresa") || "";
-        nombreEmpresaInput.value = nombreGuardado;
-        
+        nombreEmpresaInput.value = localStorage.getItem("nombreEmpresa") || "";
         nombreEmpresaInput.addEventListener("input", () => {
             localStorage.setItem("nombreEmpresa", nombreEmpresaInput.value.trim());
         });
     }
+
+    // ✅ Cargar tasas BCV manuales
+    const bcvUsdManualInput = document.getElementById("bcvUsdManual");
+    const bcvEurManualInput = document.getElementById("bcvEurManual");
+    
+    if (bcvUsdManualInput) {
+        bcvUsdManualInput.value = bcvUsdManual > 0 ? bcvUsdManual : "";
+        bcvUsdManualInput.addEventListener("input", () => {
+            const val = parseFloat(bcvUsdManualInput.value);
+            if (!isNaN(val) && val > 0) {
+                bcvUsdManual = val;
+                localStorage.setItem("bcvUsdManual", val);
+            } else {
+                bcvUsdManual = 0;
+                localStorage.removeItem("bcvUsdManual");
+            }
+            actualizarIndicadoresBCV();
+            ejecutarCalculo();
+        });
+    }
+    
+    if (bcvEurManualInput) {
+        bcvEurManualInput.value = bcvEurManual > 0 ? bcvEurManual : "";
+        bcvEurManualInput.addEventListener("input", () => {
+            const val = parseFloat(bcvEurManualInput.value);
+            if (!isNaN(val) && val > 0) {
+                bcvEurManual = val;
+                localStorage.setItem("bcvEurManual", val);
+            } else {
+                bcvEurManual = 0;
+                localStorage.removeItem("bcvEurManual");
+            }
+            actualizarIndicadoresBCV();
+            ejecutarCalculo();
+        });
+    }
+
+    actualizarIndicadoresBCV();
+
+    // ✅ Eventos del drawer
+    document.getElementById('hamburgerBtn').addEventListener('click', abrirDrawer);
+    document.getElementById('drawerOverlay').addEventListener('click', cerrarDrawer);
+    
+    document.querySelectorAll('.drawer-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const vista = item.getAttribute('data-view');
+            cambiarVista(vista);
+        });
+    });
 
     consultarBCV();
     setInterval(consultarBCV, 180000);
@@ -500,45 +662,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }, true);
     }
 
-    const btnAbrir = document.getElementById("btnAbrirEditor");
-    const btnCerrar = document.getElementById("btnCerrarEditor");
-    const seccionEditor = document.getElementById("seccionEditorTasas");
     const btnGuardar = document.getElementById("btnGuardarTodasLasTasas");
-    const listaTabla = document.getElementById("listaTasasEditables");
-
-    function renderTablaEditor() {
-        if (!listaTabla) return;
-        listaTabla.innerHTML = "";
-        PAISES.forEach(o => {
-            PAISES.forEach(d => {
-                if (normalizar(o) !== normalizar(d)) {
-                    const par = obtenerClave(o, d);
-                    const val = obtenerTasaActiva(o, d);
-                    const tr = document.createElement("tr");
-                    tr.style.borderBottom = "1px solid #334155";
-                    tr.innerHTML = `
-                        <td style="padding: 8px; color: #f8fafc; font-size: 0.85em; font-weight: 600;">${o} ➔ ${d}</td>
-                        <td style="padding: 8px; text-align: right;">
-                            <input type="number" step="any" value="${val}" data-par="${par}" class="input-tasa-editor" style="padding: 6px 8px; font-size: 0.9em; width: 100px; text-align: right; background: #0f172a; color: #74c69d; border: 1px solid #334155; border-radius: 6px; font-weight: bold;">
-                        </td>
-                    `;
-                    listaTabla.appendChild(tr);
-                }
-            });
-        });
-    }
-
-    if (btnAbrir && seccionEditor) {
-        btnAbrir.addEventListener("click", () => {
-            renderTablaEditor();
-            seccionEditor.style.display = seccionEditor.style.display === "none" ? "block" : "none";
-        });
-    }
-
-    if (btnCerrar && seccionEditor) {
-        btnCerrar.addEventListener("click", () => seccionEditor.style.display = "none");
-    }
-
     if (btnGuardar) {
         btnGuardar.addEventListener("click", () => {
             const inputs = document.querySelectorAll(".input-tasa-editor");
@@ -552,8 +676,20 @@ document.addEventListener("DOMContentLoaded", () => {
             localStorage.setItem("tasasLocales", JSON.stringify(tasasLocales));
             ejecutarCalculo();
             actualizarTablaCruzadaModal();
-            alert("✅ Todas las tasas se guardaron correctamente en tu dispositivo.");
-            if (seccionEditor) seccionEditor.style.display = "none";
+            alert("✅ Todas las tasas se guardaron correctamente.");
+        });
+    }
+
+    const btnReset = document.getElementById("btnResetConfig");
+    if (btnReset) {
+        btnReset.addEventListener("click", () => {
+            if (confirm("¿Estás seguro de restaurar todos los valores predeterminados?")) {
+                localStorage.removeItem("nombreEmpresa");
+                localStorage.removeItem("bcvUsdManual");
+                localStorage.removeItem("bcvEurManual");
+                localStorage.removeItem("tasasLocales");
+                location.reload();
+            }
         });
     }
 
