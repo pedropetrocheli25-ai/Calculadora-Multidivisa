@@ -2,13 +2,16 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Calculadora Multidivisa Pro</title>
+    <meta name="description" content="Calcula cuánto recibirás o debes enviar entre Perú, Venezuela, Colombia y Brasil, con la tasa BCV actualizada al momento.">
 
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#121212">
+    <meta name="theme-color" content="#0b1120">
+    <meta name="color-scheme" content="dark">
 
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Remesas Pro">
     <link rel="apple-touch-icon" href="/icon-192.png">
@@ -16,56 +19,54 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- ✅ MENÚ DRAWER LATERAL (Tipo app "al cambio") -->
-    <nav class="drawer" id="drawer">
+    <!-- MENÚ LATERAL -->
+    <nav class="drawer" id="drawer" aria-label="Menú principal" aria-hidden="true">
         <div class="drawer-header">
-            <div class="drawer-logo">💱</div>
+            <div class="drawer-logo" aria-hidden="true">💱</div>
             <h2>Mi Calculadora</h2>
         </div>
         <ul class="drawer-menu">
             <li>
-                <button class="drawer-item active" data-view="calculadora">
-                    <span class="drawer-icon"></span>
+                <button class="drawer-item active" data-view="calculadora" type="button">
+                    <span class="drawer-icon" aria-hidden="true">🧮</span>
                     <span>Calculadora</span>
                 </button>
             </li>
             <li>
-                <button class="drawer-item" data-view="configuracion">
-                    <span class="drawer-icon">⚙️</span>
+                <button class="drawer-item" data-view="configuracion" type="button">
+                    <span class="drawer-icon" aria-hidden="true">⚙️</span>
                     <span>Configuración</span>
                 </button>
             </li>
         </ul>
         <div class="drawer-footer">
-            <p class="drawer-version">v1.0</p>
+            <p class="drawer-version">v2.0</p>
         </div>
     </nav>
 
-    <!-- ✅ FONDO OSCURO CUANDO EL DRAWER ESTÁ ABIERTO -->
+    <!-- FONDO OSCURO CUANDO EL MENÚ ESTÁ ABIERTO -->
     <div class="drawer-overlay" id="drawerOverlay"></div>
 
-    <!-- ✅ CONTENIDO PRINCIPAL -->
+    <!-- CONTENIDO PRINCIPAL -->
     <div class="main-content">
-        <!-- Botón hamburguesa -->
-        <button class="hamburger" id="hamburgerBtn" aria-label="Abrir menú">
+        <button class="hamburger" id="hamburgerBtn" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="drawer">
             <span></span>
             <span></span>
             <span></span>
         </button>
 
         <div class="container">
-            <!-- ========================================
-                 VISTA: CALCULADORA
-                 ======================================== -->
+
+            <!-- ============ VISTA: CALCULADORA ============ -->
             <div id="view-calculadora" class="view activa">
-                <div class="header">
+                <header class="header">
                     <h1>Calculadora Multidivisa</h1>
                     <p class="subtitle">Calcula cuánto recibirás o debes enviar entre Perú, Venezuela, Colombia y Brasil</p>
-                </div>
+                </header>
 
                 <div class="card">
                     <div class="form-group">
-                        <label>País Origen</label>
+                        <label for="origen">País Origen</label>
                         <select id="origen" class="form-control">
                             <option value="Perú">Perú</option>
                             <option value="Venezuela" selected>Venezuela</option>
@@ -75,11 +76,11 @@
                     </div>
 
                     <div class="swap-container">
-                        <button id="swapBtn" class="btn-swap" type="button" title="Intercambiar países" aria-label="Intercambiar países">⇆</button>
+                        <button id="swapBtn" class="btn-swap" type="button" title="Intercambiar países" aria-label="Intercambiar países">⇅</button>
                     </div>
 
                     <div class="form-group">
-                        <label>País Destino</label>
+                        <label for="destino">País Destino</label>
                         <select id="destino" class="form-control">
                             <option value="Perú" selected>Perú</option>
                             <option value="Venezuela">Venezuela</option>
@@ -89,73 +90,78 @@
                     </div>
 
                     <!-- Sección BCV -->
-                    <div id="bcvSection" class="bcv-section" style="display: none;">
+                    <div id="bcvSection" class="bcv-section" hidden>
+                        <div class="bcv-head">
+                            <span class="bcv-title">Tasa oficial BCV</span>
+                            <button id="btnRefrescarBCV" class="btn-icon" type="button" title="Actualizar tasa BCV" aria-label="Actualizar tasa BCV">↻</button>
+                        </div>
+
                         <div class="bcv-grid">
-                            <div class="bcv-card usd" onclick="consultarBCV()" style="cursor: pointer;" title="Toca para actualizar tasa BCV">
-                                <span class="bcv-label">🇺🇸 USD BCV 🔄</span>
-                                <span class="bcv-value" id="bcvUsd">Cargando...</span>
+                            <div class="bcv-card usd" id="cardUsd" role="button" tabindex="0" title="Toca para actualizar la tasa BCV">
+                                <span class="bcv-label">🇺🇸 USD BCV</span>
+                                <span class="bcv-value cargando" id="bcvUsd">Cargando…</span>
                                 <span class="bcv-badge" id="bcvUsdBadge"></span>
                             </div>
-                            <div class="bcv-card eur" onclick="consultarBCV()" style="cursor: pointer;" title="Toca para actualizar tasa BCV">
-                                <span class="bcv-label">🇪 EUR BCV 🔄</span>
-                                <span class="bcv-value" id="bcvEur">Cargando...</span>
+                            <div class="bcv-card eur" id="cardEur" role="button" tabindex="0" title="Toca para actualizar la tasa BCV">
+                                <span class="bcv-label">🇪🇺 EUR BCV</span>
+                                <span class="bcv-value cargando" id="bcvEur">Cargando…</span>
                                 <span class="bcv-badge" id="bcvEurBadge"></span>
                             </div>
                         </div>
 
-                        <div class="form-group" style="margin-top: 10px;">
-                            <label>Moneda BCV para equivalencia</label>
+                        <div class="bcv-estado" id="bcvEstado" aria-live="polite"></div>
+
+                        <div class="form-group bcv-extra">
+                            <label for="monedaBCV">Moneda BCV para equivalencia</label>
                             <select id="monedaBCV" class="form-control">
                                 <option value="USD">💵 Dólar (USD)</option>
                                 <option value="EUR">💶 Euro (EUR)</option>
                             </select>
                         </div>
 
-                        <div class="form-group" style="margin-top: 10px;">
-                            <label>🎯 ¿Deseas recibir un monto exacto en USD/EUR? (Opcional)</label>
-                            <input type="number" id="montoBCVDeseado" class="form-control" placeholder="Ej: 10" step="any">
+                        <div class="form-group bcv-extra">
+                            <label for="montoBCVDeseado">🎯 ¿Deseas recibir un monto exacto en USD/EUR? (Opcional)</label>
+                            <input type="number" id="montoBCVDeseado" class="form-control" placeholder="Ej: 10" step="any" min="0" inputmode="decimal">
                         </div>
                     </div>
 
                     <div class="form-group" id="montoGroup">
-                        <label id="lblMonto">Monto a Enviar / Convertir (Bs)</label>
-                        <input type="number" id="monto" class="form-control" placeholder="0.00" step="any">
+                        <label for="monto" id="lblMonto">Monto a Enviar / Convertir (Bs)</label>
+                        <input type="number" id="monto" class="form-control" placeholder="0.00" step="any" min="0" inputmode="decimal">
                     </div>
 
                     <div class="form-group">
-                        <label>Operación</label>
+                        <label for="operacion">Operación</label>
                         <select id="operacion" class="form-control">
                             <option value="multiplicar">Multiplicar (Monto × Tasa)</option>
                             <option value="dividir" selected>Dividir (Monto ÷ Tasa)</option>
                         </select>
                     </div>
 
-                    <div class="tasa-info-card" id="tasaInfo">
-                        Cargando tasa...
-                    </div>
+                    <div class="tasa-info-card" id="tasaInfo">Cargando tasa…</div>
 
                     <div class="result-box">
                         <span class="result-title" id="lblResultadoTitle">Resultado</span>
                         <div class="result-amount" id="resultado">S/ 0,00</div>
-                        <div id="bcvEquivalencia" style="display: none; margin-top: 8px; font-size: 0.95em; color: #74c69d; font-weight: 600;"></div>
+                        <div class="bcv-equivalencia" id="bcvEquivalencia" hidden></div>
                     </div>
 
                     <!-- BOTONES DE ACCIÓN RÁPIDA -->
-                    <button class="btn-whatsapp" id="btnWhatsapp">📲 Compartir Cálculo por WhatsApp</button>
-                    <button class="btn-secondary" id="btnCopiarTransaccion" style="margin-top: 8px; width: 100%;"> Copiar Cálculo / Cotización</button>
+                    <button class="btn-whatsapp" id="btnWhatsapp" type="button">📲 Compartir Cálculo por WhatsApp</button>
+                    <button class="btn-secondary btn-block" id="btnCopiarTransaccion" type="button">📋 Copiar Cálculo / Cotización</button>
 
-                    <!-- VER TABLA DE TASAS CRUZADAS -->
-                    <button type="button" class="btn-secondary" id="verTasasBtn" style="margin-top: 15px; width: 100%; cursor: pointer;">Ver tabla de tasas</button>
+                    <!-- TABLA DE TASAS CRUZADAS -->
+                    <button type="button" class="btn-secondary btn-block btn-tabla" id="verTasasBtn" aria-expanded="false" aria-controls="tablaTasas">Ver tabla de tasas</button>
 
-                    <div id="tablaTasas" class="modal-tasas" style="display: none; margin-top: 15px; background: #1e293b; padding: 15px; border-radius: 12px; border: 1px solid #334155;">
-                        <h3 style="color: #74c69d; margin-bottom: 12px; font-size: 1.1em; text-align: center;">Tabla de Tasas Cruzadas</h3>
+                    <div id="tablaTasas" class="modal-tasas" hidden>
+                        <h3 class="modal-tasas-title">Tabla de Tasas Cruzadas</h3>
                         <div class="table-container">
-                            <table style="width: 100%; text-align: left; border-collapse: collapse;">
+                            <table class="tabla-cruzada">
                                 <thead>
-                                    <tr style="border-bottom: 1px solid #334155; color: #b7e4c7;">
-                                        <th style="padding: 8px;">Origen</th>
-                                        <th style="padding: 8px;">Destino</th>
-                                        <th style="padding: 8px; text-align: right;">Tasa</th>
+                                    <tr>
+                                        <th>Origen</th>
+                                        <th>Destino</th>
+                                        <th>Tasa</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tablaTasasContent"></tbody>
@@ -165,80 +171,78 @@
                 </div>
             </div>
 
-            <!-- ========================================
-                 VISTA: CONFIGURACIÓN
-                 ======================================== -->
+            <!-- ============ VISTA: CONFIGURACIÓN ============ -->
             <div id="view-configuracion" class="view">
-                <div class="header">
+                <header class="header">
                     <h1>⚙️ Configuración</h1>
                     <p class="subtitle">Personaliza tu calculadora</p>
-                </div>
+                </header>
 
                 <div class="card">
                     <!-- 1. Nombre de la empresa -->
-                    <div class="config-section">
+                    <section class="config-section">
                         <h3 class="config-title">🏢 Nombre de la Empresa</h3>
                         <p class="config-desc">Aparecerá en el mensaje de WhatsApp</p>
-                        <input type="text" id="nombreEmpresa" class="form-control" placeholder="Ej: Envíos JL28">
-                    </div>
+                        <label for="nombreEmpresa" class="sr-only">Nombre de la empresa</label>
+                        <input type="text" id="nombreEmpresa" class="form-control" placeholder="Ej: Envíos JL28" autocomplete="off">
+                    </section>
 
-                    <!-- 2. Tasas BCV Manuales -->
-                    <div class="config-section">
-                        <h3 class="config-title"> Tasas BCV Manuales</h3>
-                        <p class="config-desc">Si escribes un valor, se usará ese. Si lo borras, volverá a usar el de la API automáticamente.</p>
-                        
+                    <!-- 2. Tasas BCV manuales -->
+                    <section class="config-section">
+                        <h3 class="config-title">✏️ Tasas BCV Manuales</h3>
+                        <p class="config-desc">Si escribes un valor, se usará ese. Si lo borras, volverá a usar la tasa automática del BCV.</p>
+
                         <div class="bcv-manual-grid">
                             <div class="bcv-manual-card">
-                                <label>🇸 USD BCV Manual</label>
-                                <input type="number" id="bcvUsdManual" class="form-control" placeholder="Automático (API)" step="any">
-                                <small class="config-hint" id="bcvUsdHint">Usando valor de la API</small>
+                                <label for="bcvUsdManual">🇺🇸 USD BCV Manual</label>
+                                <input type="number" id="bcvUsdManual" class="form-control" placeholder="Automático" step="any" min="0" inputmode="decimal">
+                                <small class="config-hint" id="bcvUsdHint">Usando valor automático</small>
                             </div>
                             <div class="bcv-manual-card">
-                                <label>🇪🇺 EUR BCV Manual</label>
-                                <input type="number" id="bcvEurManual" class="form-control" placeholder="Automático (API)" step="any">
-                                <small class="config-hint" id="bcvEurHint">Usando valor de la API</small>
+                                <label for="bcvEurManual">🇪🇺 EUR BCV Manual</label>
+                                <input type="number" id="bcvEurManual" class="form-control" placeholder="Automático" step="any" min="0" inputmode="decimal">
+                                <small class="config-hint" id="bcvEurHint">Usando valor automático</small>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
-                    <!-- 3. Tasas de países -->
-                    <div class="config-section">
-                        <h3 class="config-title">💰 Tasas entre Países</h3>
+                    <!-- 3. Tasas entre países -->
+                    <section class="config-section">
+                        <h3 class="config-title">🌎 Tasas entre Países</h3>
                         <p class="config-desc">Modifica las tasas de conversión entre países. Se guardan en tu dispositivo.</p>
                         <div class="tasas-scroll">
                             <table class="tasas-table">
                                 <thead>
                                     <tr>
                                         <th>Ruta</th>
-                                        <th style="text-align: right;">Tasa</th>
+                                        <th>Tasa</th>
                                     </tr>
                                 </thead>
                                 <tbody id="listaTasasEditables"></tbody>
                             </table>
                         </div>
-                        <button type="button" id="btnGuardarTodasLasTasas" class="btn-guardar">
-                            💾 Guardar Todas las Tasas
-                        </button>
-                    </div>
+                        <button type="button" id="btnGuardarTodasLasTasas" class="btn-guardar">💾 Guardar Todas las Tasas</button>
+                    </section>
 
-                    <!-- 4. Botón para resetear todo -->
-                    <div class="config-section">
-                        <button type="button" id="btnResetConfig" class="btn-reset">
-                            🔄 Restaurar Valores Predeterminados
-                        </button>
-                    </div>
+                    <!-- 4. Restaurar -->
+                    <section class="config-section">
+                        <button type="button" id="btnResetConfig" class="btn-reset">🔄 Restaurar Valores Predeterminados</button>
+                    </section>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Avisos emergentes -->
+    <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
 
     <script src="script.js" defer></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('Service Worker Registrado'))
+                navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+                    .then(() => console.log('Service Worker registrado'))
                     .catch(err => console.error('Error Service Worker:', err));
             });
         }
