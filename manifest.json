@@ -1,21 +1,24 @@
 {
-  "short_name": "RemesasPro",
-  "name": "Calculadora Multidivisa - Remesas Pro",
-  "icons": [
-    {
-      "src": "icon-192.png",
-      "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "icon-512.png",
-      "type": "image/png",
-      "sizes": "512x512"
-    }
-  ],
-  "start_url": "/",
-  "background_color": "#121212",
-  "theme_color": "#121212",
-  "display": "standalone",
-  "orientation": "portrait"
+    "short_name": "RemesasPro",
+    "name": "Calculadora Multidivisa - Remesas Pro",
+    "description": "Calcula remesas entre Perú, Venezuela, Colombia y Brasil con la tasa BCV al momento.",
+    "lang": "es",
+    "icons": [
+        {
+            "src": "icon-192.png",
+            "type": "image/png",
+            "sizes": "192x192"
+        },
+        {
+            "src": "icon-512.png",
+            "type": "image/png",
+            "sizes": "512x512"
+        }
+    ],
+    "start_url": "/",
+    "scope": "/",
+    "background_color": "#0b1120",
+    "theme_color": "#0b1120",
+    "display": "standalone",
+    "orientation": "portrait"
 }
